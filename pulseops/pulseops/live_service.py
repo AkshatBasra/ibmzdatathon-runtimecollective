@@ -32,6 +32,13 @@ class LiveServiceAdapter:
         try:
             with urllib.request.urlopen(req, timeout=self.timeout_s) as response:
                 result = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            try:
+                detail = json.loads(exc.read().decode("utf-8"))
+            except (OSError, ValueError, json.JSONDecodeError):
+                detail = None
+            message = detail.get("error") if isinstance(detail, dict) else str(exc)
+            raise LiveServiceError(f"Service X rejected {path}: {message}") from exc
         except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
             raise LiveServiceError(f"Service X request failed: {exc}") from exc
         if not isinstance(result, dict):

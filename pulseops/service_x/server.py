@@ -24,7 +24,7 @@ from typing import Any, Dict
 
 class ServiceX:
     def __init__(self, rate: float = 12.0, workers: int = 2, delay_ms: float = 80.0):
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.queue: Queue[float] = Queue(maxsize=500)
         self.rate = rate
         self.traffic_multiplier = 1.0
