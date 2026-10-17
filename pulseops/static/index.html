@@ -54,6 +54,7 @@ code{background:#eef1f6;padding:0 4px;border-radius:3px}
   <h1>PulseOps</h1><span class="sub">detect &middot; respond &middot; prove recovery</span>
   <span id="health" class="badge healthy">HEALTHY</span>
   <span class="sim" id="host_badge" style="background:#1d3557;color:#a8dadc">Host: detecting...</span>
+  <span class="sim" id="service_badge" style="background:#14532d;color:#bbf7d0">Mode: simulation</span>
   <span class="sim" id="slm_badge" style="background:#3a0ca3;color:#f72585">SLM: embedded</span>
   <span class="sub" id="clock"></span>
   <span style="flex:1"></span>
@@ -65,7 +66,7 @@ code{background:#eef1f6;padding:0 4px;border-radius:3px}
 <main>
   <section>
     <div class="card" style="margin-bottom:12px">
-      <h2>Scenario controls (isolated simulation)</h2>
+      <h2>Service controls</h2>
       <div class="btns">
         <button class="ok" onclick="post('/api/fault/clear')">Normal traffic</button>
         <span class="mute small">Inject:</span>
@@ -158,7 +159,7 @@ function renderIncident(S){
   const inc=S.incident,el=$('inc');
   if(!inc){el.innerHTML='<h2>Incident</h2><div class="mute">No incident. Inject a fault to start the demo.</div>';return}
   const [bc,bt]=stateBanner(inc),d=inc.diagnosis||{};let h=`<h2>Incident ${esc(inc.id)}</h2><div class="banner ${bc}">${esc(bt)}</div>`;
-  h+=`<div class="small mute">opened t=${fmt(inc.opened_t,4)}s · detected ${inc.time_to_detect_s!=null?inc.time_to_detect_s+' s after (simulated) fault injection':''}</div>`;
+  h+=`<div class="small mute">opened t=${fmt(inc.opened_t,4)}s · detected ${inc.time_to_detect_s!=null?inc.time_to_detect_s+' s after '+(S.service_mode==='live'?'live control':'simulated fault injection'):''}</div>`;
   h+=`<p><b>${esc(d.summary||'')}</b></p>`;
   if(d.ai_explanation){h+=`<div style="background:#f0f4ff;border-left:4px solid #2f6fe4;padding:8px 10px;border-radius:4px;margin:8px 0;font-size:12px"><div style="font-weight:700;color:#1c3d73;margin-bottom:3px">🤖 AI Copilot Analysis:</div><div>${esc(d.ai_explanation)}</div></div>`}
   if(d.facts){h+='<div class="small"><b>Observed facts</b> <span class="mute">(at detection time)</span><ul>'+d.facts.map(f=>'<li>'+esc(f)+'</li>').join('')+'</ul></div>'}
@@ -185,15 +186,16 @@ function renderBA(S){
   if(!v||!inc.before){$('batable').innerHTML='<div class="mute small">Before/after table is produced once an action has been executed and verified (green dotted line = recovery threshold).</div>';return}
   let h='<table><tr><th>Metric</th><th>Baseline</th><th>Before (peak)</th><th>After (mean of last '+v.window+')</th><th>Recovery threshold</th><th>Improvement</th><th>Pass</th></tr>';
   for(const [m,r] of Object.entries(v.metrics))h+=`<tr><td>${esc(m)}</td><td>${fmt(r.baseline)}</td><td>${fmt(r.before_peak)}</td><td>${fmt(r.after_mean)}</td><td>≤ ${fmt(r.threshold)}</td><td>${r.improvement==null?'n/a':Math.round(r.improvement*100)+'%'}</td><td>${r.passed==null?'?':r.passed?'✓':'✗'}</td></tr>`;
-  $('batable').innerHTML=h+`</table><div class="small mute">Verdict: <b>${esc(v.verdict)}</b> — ${esc(v.reason)}. Simulated measurements.</div>`;
+  $('batable').innerHTML=h+`</table><div class="small mute">Verdict: <b>${esc(v.verdict)}</b> — ${esc(v.reason)}. ${S.service_mode==='live'?'Live Service X measurements.':'Simulated measurements.'}</div>`;
 }
 function render(S){
   const hb=$('health');hb.textContent=S.health.toUpperCase();hb.className='badge '+S.health;
-  $('clock').textContent='sim t='+Math.round(S.now)+'s'+(S.paused?' (paused)':'');
+  $('clock').textContent=(S.service_mode==='live'?'live':'sim')+' t='+Math.round(S.now)+'s'+(S.paused?' (paused)':'');
+  $('service_badge').textContent=`Mode: ${S.service_mode||'simulation'}`;
   if(S.host_info){const h=S.host_info,ls=S.live_system||{};const mem=ls.process_memory_mb!=null?` · ${ls.process_memory_mb}MB`:'';$('host_badge').textContent=`${h.platform_label} (${h.cpu_count} CPU${mem})`}
   if(S.slm_provider){$('slm_badge').textContent=`SLM: ${S.slm_provider}`}
   $('dry').checked=S.mode.dry_run;$('auto').checked=S.mode.auto_approve;$('pause').textContent=S.paused?'Resume':'Pause';
-  $('svc').textContent=`workers ${S.workers}/${S.limits.max_workers} · intake ${(S.intake_factor*100).toFixed(0)}% · fault: ${S.fault?S.fault.kind+' ×'+S.fault.magnitude:'none'}`;
+  $('svc').textContent=`mode ${S.service_mode||'simulation'} · workers ${S.workers}/${S.limits.max_workers} · intake ${(S.intake_factor*100).toFixed(0)}% · fault: ${S.fault?S.fault.kind+' ×'+S.fault.magnitude:'none'}`;
   mkCharts($('charts'),METRICS,'m');const mk=markers(S,S.incident);
   METRICS.forEach(([k])=>{const b=(S.baselines||{})[k];draw($('mc_'+k),S.series,k,{baseline:b&&b.baseline,markers:mk});
     const last=S.series[S.series.length-1];$('mv_'+k).textContent=last?fmt(last[k]):''});

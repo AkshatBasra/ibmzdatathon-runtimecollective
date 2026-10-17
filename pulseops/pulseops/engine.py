@@ -19,6 +19,7 @@ from .verification import VerificationConfig, summarize_before, verify
 from .host_telemetry import get_host_info, get_live_system_metrics
 from .slm import PulseOpsSLM, SLMConfig
 from .concurrent_service import ConcurrentPaymentService
+from .live_service import LiveServiceAdapter
 
 log = logging.getLogger("pulseops")
 
@@ -47,7 +48,8 @@ class PulseOpsEngine:
                  ver_cfg: Optional[VerificationConfig] = None, run_dir: Optional[str] = None,
                  auto_approve: bool = False, prewarm: int = 90, incident_cooldown_s: float = 15.0,
                  history: int = 3600, wall_clock: Callable[[], float] = time.time,
-                 use_concurrent_service: bool = False, slm_cfg: Optional[SLMConfig] = None):
+                 use_concurrent_service: bool = False, live_service_url: Optional[str] = None,
+                 slm_cfg: Optional[SLMConfig] = None):
         self.sim_cfg = sim_cfg or SimConfig()
         self.rem_cfg = rem_cfg or RemediationConfig()
         self.ver_cfg = ver_cfg or VerificationConfig()
@@ -60,13 +62,16 @@ class PulseOpsEngine:
         self.history_len = history
         self.wall = wall_clock
         self.use_concurrent_service = use_concurrent_service
+        self.live_service_url = live_service_url
         self.host_info = get_host_info()
         self.slm = PulseOpsSLM(slm_cfg)
         self.reset()
 
     # ------------------------------------------------------------------ lifecycle
     def reset(self) -> None:
-        if self.use_concurrent_service:
+        if self.live_service_url:
+            self.sim = LiveServiceAdapter(self.live_service_url)
+        elif self.use_concurrent_service:
             self.sim = ConcurrentPaymentService(
                 base_arrival=self.sim_cfg.base_arrival,
                 base_service_ms=self.sim_cfg.base_service_ms,
@@ -87,7 +92,11 @@ class PulseOpsEngine:
         self.last_close_t = -1e9
         self.last_warning_t = -1e9
         for _ in range(self.prewarm):          # warm-up on normal traffic so the demo starts with a baseline
-            if self.use_concurrent_service:
+            if self.live_service_url:
+                sample = self.sim.warmup_step()
+                self.history.append(sample)
+                self.detector.update(sample["t"], sample)
+            elif self.use_concurrent_service:
                 sample = self.sim.warmup_step()
                 self.history.append(sample)
                 self.detector.update(sample["t"], sample)
@@ -109,11 +118,13 @@ class PulseOpsEngine:
     # ------------------------------------------------------------------ controls
     def inject_fault(self, kind: str, magnitude: float) -> None:
         self.sim.inject_fault(kind, magnitude)
-        log.info("FAULT injected (simulated): %s x%.2f at t=%.0f", kind, magnitude, self.now)
+        source = "live Service X" if self.live_service_url else "simulated"
+        log.info("FAULT injected (%s): %s x%.2f at t=%.0f", source, kind, magnitude, self.now)
 
     def clear_fault(self) -> None:
         self.sim.clear_fault()
-        log.info("FAULT cleared (simulated) at t=%.0f", self.now)
+        source = "live Service X" if self.live_service_url else "simulated"
+        log.info("FAULT cleared (%s) at t=%.0f", source, self.now)
 
     # ------------------------------------------------------------------ main loop
     def tick(self) -> Dict[str, Any]:
@@ -133,7 +144,7 @@ class PulseOpsEngine:
 
     def _on_anomaly(self, a: Dict[str, Any], sample: Dict[str, Any]) -> None:
         self._alert_seq += 1
-        a["id"], a["t"], a["simulated"] = f"AL{self._alert_seq:04d}", sample["t"], True
+        a["id"], a["t"], a["simulated"] = f"AL{self._alert_seq:04d}", sample["t"], sample.get("simulated", True)
         a["action"] = "logged"
         sev = a["severity"]
         inc = self.active_incident()
@@ -173,7 +184,8 @@ class PulseOpsEngine:
             "baselines": baselines, "before_open": summarize_before(recent, baselines, self.ver_cfg.metrics),
             "before": None, "verification": None, "timeline": [], "action_ids": [], "pending_action": None,
             "tried": set(), "attempts": [], "exec_t": None, "closed_t": None, "notes": [],
-            "fault_started_t": self.sim.fault_started_t, "simulated": True,
+            "fault_started_t": self.sim.fault_started_t,
+            "simulated": not bool(self.live_service_url),
         }
         self.incidents[iid] = inc
         self._event(inc, "detected", trigger["reason"])
@@ -343,7 +355,7 @@ class PulseOpsEngine:
         if inc is None and self.incidents:
             inc = list(self.incidents.values())[-1]
         return {
-            "simulated": True,
+            "simulated": not bool(self.live_service_url),
             "now": self.now,
             "health": self.health(),
             "mode": {"dry_run": self.rem_cfg.dry_run, "auto_approve": self.auto_approve},
@@ -362,6 +374,8 @@ class PulseOpsEngine:
             "live_system": get_live_system_metrics(),
             "slm_provider": self.slm.last_provider_used if self.slm else "none",
             "concurrent_engine": self.use_concurrent_service,
+            "service_mode": "live" if self.live_service_url else ("concurrent" if self.use_concurrent_service else "simulation"),
+            "live_service_url": self.live_service_url,
         }
 
     def incident_detail(self, iid: str) -> Optional[Dict[str, Any]]:

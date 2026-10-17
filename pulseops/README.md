@@ -5,7 +5,8 @@ telemetry → anomaly detection → diagnosis → *approved, bounded* remediatio
 Runs on the Python standard library only (no pip installs, no network, no external AI API), so it is safe on
 LinuxONE / s390x. Python 3.9+.
 
-> Everything the live demo shows is **simulated** and labelled as such. Offline NAB results are kept separate
+> The default demo is **simulated** and labelled as such. Live Service X mode uses telemetry from a separate
+> running process. Offline NAB results are kept separate
 > (`results/offline_nab.json`) and are never mixed with live-demo numbers.
 
 ## Run
@@ -20,7 +21,8 @@ python scripts/profile_nab.py                 # descriptive stats of the NAB CSV
 # Or open PulseOps_Demo.ipynb directly in Jupyter Notebook on LinuxONE!
 ```
 
-Server flags: `--dry-run` (never change anything), `--auto-approve` (bounded actions only), `--tick 0.5`.
+Server flags: `--dry-run` (never change anything), `--auto-approve` (bounded actions only),
+`--tick 0.5`, and `--live-service-url URL` to monitor an independent Service X JSON API.
 It binds to 127.0.0.1; on a shared LinuxONE host use `ssh -L 8000:127.0.0.1:8000 …` instead of `--host 0.0.0.0`.
 On LinuxONE: `python3 -c "import platform;print(platform.machine())"` should print `s390x`; nothing here needs a binary wheel.
 
@@ -29,6 +31,8 @@ On LinuxONE: `python3 -c "import platform;print(platform.machine())"` should pri
 | Module | Role |
 |---|---|
 | `pulseops/simulator.py` | Team-owned payment service (queue, workers, latency, errors, simulated CPU). Faults: `load_spike`, `slow_downstream`. |
+| `service_x/server.py` | Separate standard-library HTTP service with real worker threads, queue, latency, errors and process CPU measurements. |
+| `pulseops/live_service.py` | Service X telemetry and bounded-control adapter used by live mode. |
 | `pulseops/detector.py` | Streaming robust detector: median/MAD/IQR baseline with scale floors, spike + sustained-shift tests, warm-up, persistence, cooldown with escalation, missing/NaN/constant handling, optional `SeasonalGuard`. |
 | `pulseops/diagnosis.py` | Rule-based explanation: *observed facts* vs *hypotheses* vs *not established*; picks the next bounded action. No LLM needed. |
 | `pulseops/remediation.py` | Allowlist (`snapshot_state`, `scale_workers`, `throttle_intake`), bounds, step limit, cooldown, loop prevention, approval, dry-run, audit JSONL. No shell, no model-written commands. |
@@ -66,7 +70,32 @@ window based (hit / delay / false positives), not point F1.
 
 ## Limitations / honesty notes
 * The simulator is a queueing toy; recovery numbers are properties of that model, not of real infrastructure.
+* `service_x` is a demo target for live mode; a real service can replace it by implementing the same `/metrics`, `/snapshot`, and `/control` contract.
 * Offline NAB results: configs were compared on the same labelled data (optimistic). `5f5533`'s level change and
   `53ea38`'s windows are essentially undetectable by this detector at an acceptable false-positive rate — see `results/offline_nab.json`.
 * One incident at a time; one metric set; no persistence across server restarts besides audit/backups/logs.
 * The repository root also contains the original OmniAnomaly (TensorFlow 1.12 / Python 3.5-3.6). It is **not** used.
+
+### Live Service X mode
+
+Run the independent target in one terminal:
+
+```bash
+python3 -m service_x.server --port 9100 --rate 12 --workers 2 --delay-ms 80
+```
+
+Run PulseOps in another terminal:
+
+```bash
+python3 -m pulseops.server --port 8000 --live-service-url http://127.0.0.1:9100
+```
+
+The dashboard's load-spike and slow-downstream controls call Service X's bounded
+control API. To create an incident directly:
+
+```bash
+curl -X POST http://127.0.0.1:9100/control \
+  -H 'Content-Type: application/json' -d '{"traffic_multiplier":4}'
+```
+
+The default simulator remains available by omitting `--live-service-url`.

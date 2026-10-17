@@ -80,7 +80,8 @@ def diagnose(recent: List[Dict[str, Any]], baselines: Dict[str, Dict[str, float]
 
     primary = hyps[0]["cause"]
     reco = recommend(obs, workers, intake_factor, rcfg, saturated, cap, tried)
-    cpu_note = "" if obs["cpu_pct"] is None else f", CPU {obs['cpu_pct']:.0f}% (simulated)"
+    live = bool(recent and recent[-1].get("simulated") is False)
+    cpu_note = "" if obs["cpu_pct"] is None else f", CPU {obs['cpu_pct']:.0f}% ({'live' if live else 'simulated'})"
     summary = (f"{hyps[0]['label']} ({hyps[0]['confidence']}). Queue depth {obs['queue_depth']:.0f}"
                if obs["queue_depth"] is not None else hyps[0]["label"])
     if obs["latency_ms"] is not None:

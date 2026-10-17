@@ -156,6 +156,7 @@ def main() -> None:
     ap.add_argument("--dry-run", action="store_true", help="never apply remediation; record what would happen")
     ap.add_argument("--auto-approve", action="store_true", help="skip human approval (bounded actions only)")
     ap.add_argument("--concurrent", action="store_true", help="run active multi-threaded concurrent payment service")
+    ap.add_argument("--live-service-url", help="monitor an independent Service X JSON API")
     ap.add_argument("--slm", default="auto", choices=["auto", "watsonx", "local_endpoint", "embedded"],
                     help="SLM intelligence provider")
     args = ap.parse_args()
@@ -165,11 +166,13 @@ def main() -> None:
     from .slm import SLMConfig
     engine = PulseOpsEngine(SimConfig(seed=args.seed), RemediationConfig(dry_run=args.dry_run), run_dir=run_dir,
                             auto_approve=args.auto_approve, use_concurrent_service=args.concurrent,
+                            live_service_url=args.live_service_url,
                             slm_cfg=SLMConfig(provider=args.slm))
     app = App(engine, args.tick)
     app.start()
     srv = ThreadingHTTPServer((args.host, args.port), make_handler(app))
-    print(f"PulseOps on http://{args.host}:{args.port}  (simulated service; audit+backups in {run_dir})")
+    mode = "live Service X" if args.live_service_url else ("concurrent service" if args.concurrent else "simulation")
+    print(f"PulseOps on http://{args.host}:{args.port}  ({mode}; audit+backups in {run_dir})")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
