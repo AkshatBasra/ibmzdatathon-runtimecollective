@@ -2,4 +2,5 @@ runs/
 logs/
 __pycache__/
 *.pyc
+models/*.pkl
 
