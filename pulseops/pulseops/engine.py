@@ -87,7 +87,12 @@ class PulseOpsEngine:
         self.last_close_t = -1e9
         self.last_warning_t = -1e9
         for _ in range(self.prewarm):          # warm-up on normal traffic so the demo starts with a baseline
-            self.tick()
+            if self.use_concurrent_service:
+                sample = self.sim.warmup_step()
+                self.history.append(sample)
+                self.detector.update(sample["t"], sample)
+            else:
+                self.tick()
         self.warmup_end_t = self.sim.t
         self.alerts.clear()
 
@@ -362,4 +367,3 @@ class PulseOpsEngine:
     def incident_detail(self, iid: str) -> Optional[Dict[str, Any]]:
         inc = self.incidents.get(iid)
         return self._incident_view(inc, True) if inc else None
-

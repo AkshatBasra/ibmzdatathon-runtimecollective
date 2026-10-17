@@ -214,6 +214,14 @@ class TestEndToEnd(unittest.TestCase):
         self.assertEqual(e.health(), "healthy")
         self.assertIsNone(e.active_incident())
 
+    def test_concurrent_warmup_keeps_queue_healthy(self):
+        e = self.engine(use_concurrent_service=True)
+        self.assertLess(e.sim.snapshot()["queue_depth"], 10)
+        e.inject_fault("load_spike", 2.0)
+        self.assertTrue(self.run_until(e, lambda: e.active_incident() is not None, 60))
+        inc = e.active_incident()
+        self.assertEqual(e.rem.records[inc["pending_action"]].action, "scale_workers")
+
     def test_critical_incident_backup_diagnosis_approval_recovery(self):
         e = self.engine()
         for _ in range(20):

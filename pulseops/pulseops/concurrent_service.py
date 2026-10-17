@@ -152,6 +152,28 @@ class ConcurrentPaymentService:
         self.fault = None
 
     # ------------------------------------------------------------------ Step
+    def warmup_step(self) -> Dict[str, Any]:
+        """Return a healthy baseline sample without enqueueing demo traffic.
+
+        Engine warm-up is intentionally faster than wall-clock time. Enqueuing
+        real transactions during that phase can fill the live queue before
+        worker threads get a chance to process them.
+        """
+        self.tick += 1
+        self.t += 1.0
+        return {
+            "t": self.t,
+            "arrival_rate": round(float(self.base_arrival), 2),
+            "throughput": round(float(self.base_arrival), 2),
+            "queue_depth": 0.0,
+            "latency_ms": round(float(self.base_service_ms), 2),
+            "error_rate": 0.0,
+            "cpu_pct": 50.0,
+            "service_time_ms": round(float(self.base_service_ms), 2),
+            "shed_rate": 0.0,
+            "workers": self.workers
+        }
+
     def step(self) -> Dict[str, Any]:
         """Advances 1 measurement interval and samples real thread performance."""
         self.tick += 1
