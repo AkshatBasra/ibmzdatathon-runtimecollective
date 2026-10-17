@@ -32,6 +32,9 @@ class ServiceX:
         self.service_delay_multiplier = 1.0
         self.error_rate = 0.0
         self.workers = workers
+        self.default_workers = workers
+        self.default_rate = rate
+        self.default_delay_ms = delay_ms
         self.delay_ms = delay_ms
         self.processed = 0
         self.errors = 0
@@ -50,12 +53,16 @@ class ServiceX:
 
     def _start_workers(self) -> None:
         for index in range(self.workers):
-            thread = threading.Thread(target=self._worker, daemon=True, name=f"ServiceXWorker-{index + 1}")
+            thread = threading.Thread(target=self._worker, args=(index,), daemon=True,
+                                      name=f"ServiceXWorker-{index + 1}")
             self.threads.append(thread)
             thread.start()
 
-    def _worker(self) -> None:
+    def _worker(self, index: int) -> None:
         while not self.stop_event.is_set():
+            with self.lock:
+                if index >= self.workers:
+                    return
             try:
                 created = self.queue.get(timeout=0.1)
             except Exception:
@@ -146,6 +153,23 @@ class ServiceX:
 
     def control(self, body: Dict[str, Any]) -> Dict[str, Any]:
         with self.lock:
+            if body.get("reset") is True:
+                self.rate = self.default_rate
+                self.traffic_multiplier = 1.0
+                self.intake_factor = 1.0
+                self.service_delay_multiplier = 1.0
+                self.error_rate = 0.0
+                target = self.default_workers
+                if target > self.workers:
+                    old = self.workers
+                    self.workers = target
+                    for index in range(old, target):
+                        thread = threading.Thread(target=self._worker, args=(index,), daemon=True,
+                                                  name=f"ServiceXWorker-{index + 1}")
+                        self.threads.append(thread)
+                        thread.start()
+                else:
+                    self.workers = target
             if "workers" in body:
                 target = int(body["workers"])
                 if target < 1 or target > 16:
@@ -154,12 +178,12 @@ class ServiceX:
                     old = self.workers
                     self.workers = target
                     for index in range(old, target):
-                        thread = threading.Thread(target=self._worker, daemon=True,
+                        thread = threading.Thread(target=self._worker, args=(index,), daemon=True,
                                                   name=f"ServiceXWorker-{index + 1}")
                         self.threads.append(thread)
                         thread.start()
-                elif target != self.workers:
-                    raise ValueError("workers can only be increased while Service X is running")
+                else:
+                    self.workers = target
             for key, low, high in (("traffic_multiplier", 0.1, 5.0),
                                     ("service_delay_multiplier", 0.1, 5.0),
                                     ("intake_factor", 0.5, 1.0),

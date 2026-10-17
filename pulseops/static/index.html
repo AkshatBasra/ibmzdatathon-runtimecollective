@@ -192,6 +192,7 @@ function stateBanner(inc){
 }
 function renderIncident(S){
   const inc=S.incident,el=$('inc');
+  const reportOpen=el.querySelector('details')?.open||false;
   if(!inc){el.innerHTML='<h2>Incident</h2><div class="mute">No incident. Inject a fault to start the demo.</div>';return}
   const [bc,bt]=stateBanner(inc),d=inc.diagnosis||{};let h=`<h2>Incident ${esc(inc.id)}</h2><div class="banner ${bc}">${esc(bt)}</div>`;
   h+=`<div class="small mute">opened t=${fmt(inc.opened_t,4)}s · detected ${inc.time_to_detect_s!=null?inc.time_to_detect_s+' s after '+(S.service_mode==='live'?'live control':'simulated fault injection'):''}</div>`;
@@ -208,7 +209,9 @@ function renderIncident(S){
   if(inc.postmortem){h+=`<details style="margin:10px 0"><summary style="cursor:pointer;font-weight:700;color:#2f6fe4;font-size:12px">📄 View Automated SRE Post-Mortem Report</summary><pre style="background:#101826;color:#a8dadc;padding:10px;border-radius:6px;font-size:11px;overflow:auto;max-height:220px;white-space:pre-wrap">${esc(inc.postmortem)}</pre></details>`}
   if(inc.notes&&inc.notes.length)h+='<ul class="small">'+inc.notes.map(n=>'<li>'+esc(n)+'</li>').join('')+'</ul>';
   h+='<div class="small"><b>Timeline</b></div><div class="tl">'+inc.timeline.map(e=>`<div><span class="mute">t=${fmt(e.t,4)}s</span> <b>${esc(e.event)}</b> ${esc(e.detail)}</div>`).join('')+'</div>';
-  el.innerHTML=h;const tl=el.querySelector('.tl');if(tl)tl.scrollTop=tl.scrollHeight;
+  el.innerHTML=h;
+  const report=el.querySelector('details');if(report)report.open=reportOpen;
+  const tl=el.querySelector('.tl');if(tl)tl.scrollTop=tl.scrollHeight;
 }
 function renderBA(S){
   const inc=S.incident;mkCharts($('ba'),[['queue_depth','Queue depth'],['latency_ms','Latency (ms)']],'ba');

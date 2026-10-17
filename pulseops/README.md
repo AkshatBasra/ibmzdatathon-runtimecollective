@@ -1,107 +1,338 @@
-# PulseOps — detect, respond, prove recovery
+# PulseOps
 
-Closed-loop incident response for a **simulated** payment-processing service:
-telemetry → anomaly detection → diagnosis → *approved, bounded* remediation → **measured** recovery verification.
-Runs on the Python standard library only (no pip installs, no network, no external AI API), so it is safe on
-LinuxONE / s390x. Python 3.9+.
+PulseOps is a closed-loop incident-response demonstrator for IBM Z/LinuxONE:
 
-> The default demo is **simulated** and labelled as such. Live Service X mode uses telemetry from a separate
-> running process. Offline NAB results are kept separate
-> (`results/offline_nab.json`) and are never mixed with live-demo numbers.
-
-## Run
-
-```bash
-cd pulseops
-python -m unittest discover -s tests          # 52 tests
-python -m pulseops.server --port 8000         # dashboard: http://127.0.0.1:8000
-python scripts/demo_headless.py load_spike 2  # same loop without a browser, prints real measurements
-python scripts/eval_nab.py                    # OFFLINE NAB replay -> results/offline_nab.json
-python scripts/profile_nab.py                 # descriptive stats of the NAB CSVs
-# Or open PulseOps_Demo.ipynb directly in Jupyter Notebook on LinuxONE!
+```text
+telemetry -> anomaly detection -> diagnosis -> bounded remediation -> measured recovery
 ```
 
-Server flags: `--dry-run` (never change anything), `--auto-approve` (bounded actions only),
-`--tick 0.5`, and `--live-service-url URL` to monitor an independent Service X JSON API.
-It binds to 127.0.0.1; on a shared LinuxONE host use `ssh -L 8000:127.0.0.1:8000 …` instead of `--host 0.0.0.0`.
-On LinuxONE: `python3 -c "import platform;print(platform.machine())"` should print `s390x`; nothing here needs a binary wheel.
+It supports two target-service modes:
+
+1. **Simulation mode** — the original deterministic in-process payment-service
+   simulator. This remains the default and is useful for repeatable demos and
+   tests.
+2. **Live Service X mode** — PulseOps monitors a separate running HTTP service
+   and can apply bounded controls to that service. Service X is a realistic
+   demo target with real worker threads, a queue, wall-clock processing delay,
+   request errors, traffic generation, and process CPU measurements.
+
+Both modes use the same detector, diagnosis, remediation, verification,
+dashboard, and approval workflow.
+
+The project uses Python's standard library for its core runtime and is suitable
+for native `s390x` LinuxONE environments. Python 3.9+ is required.
+
+## Quick start: simulator
+
+From the repository's `pulseops` directory:
+
+```bash
+python3 -m unittest discover -s tests
+python3 -m pulseops.server --port 8000
+```
+
+Open `http://127.0.0.1:8000`. The simulator is used when
+`--live-service-url` is omitted.
+
+Useful options:
+
+```text
+--port PORT                 Dashboard port; default 8000
+--host HOST                 Bind address; default 127.0.0.1
+--tick SECONDS              Wall-clock polling interval; default 0.5
+--dry-run                   Never apply remediation
+--auto-approve              Skip human approval for bounded actions
+--concurrent                Use the in-process multithreaded service
+--live-service-url URL      Monitor an independent Service X API
+--slm PROVIDER              auto, watsonx, local_endpoint, or embedded
+```
+
+The server binds to localhost by default. On a shared LinuxONE host, use SSH
+port forwarding rather than exposing the dashboard publicly:
+
+```powershell
+ssh -i "$HOME\.ssh\RCKey.pem" `
+  -L 8000:127.0.0.1:8000 `
+  -L 8080:127.0.0.1:8080 `
+  linux1@148.100.108.50
+```
+
+Then open `http://127.0.0.1:8000` on the Windows machine.
+
+## Live Service X mode
+
+### 1. Start Service X
+
+Service X is located in `service_x/` and is deliberately independent of the
+PulseOps process:
+
+```bash
+cd ~/ibmzdatathon-runtimecollective/pulseops
+python3 -m service_x.server \
+  --port 9100 \
+  --rate 12 \
+  --workers 2 \
+  --delay-ms 80
+```
+
+Check that it is running:
+
+```bash
+curl -s http://127.0.0.1:9100/health
+curl -s http://127.0.0.1:9100/metrics
+```
+
+### 2. Start PulseOps against Service X
+
+In another terminal:
+
+```bash
+cd ~/ibmzdatathon-runtimecollective/pulseops
+python3 -m pulseops.server \
+  --port 8000 \
+  --live-service-url http://127.0.0.1:9100 \
+  --slm local_endpoint
+```
+
+Omit `--slm local_endpoint` if SLM generation is not needed. The dashboard
+shows `Mode: live` and displays telemetry obtained from Service X rather than
+from the in-process simulator.
+
+### Live Service X API contract
+
+The adapter in `pulseops/live_service.py` expects:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | Service availability check |
+| `GET /metrics` | Live arrival rate, throughput, queue, latency, errors, CPU, service time, shedding, and workers |
+| `GET /snapshot` | State snapshot used by the remediation audit |
+| `POST /control` | Bounded demo controls |
+| `POST /request` | Submit one direct request |
+
+Service X is a demo target, not a production control plane. A real service can
+replace it by implementing the telemetry contract and a carefully designed
+authorization-controlled remediation endpoint.
+
+## Dashboard controls
+
+### Common controls
+
+The dashboard supports:
+
+- **Normal traffic** / fault clearing
+- **Load spike**
+- **Slow downstream**
+- Dry-run mode
+- Auto-approval mode
+- Pause/resume telemetry processing
+- Reset demo
+- Incident approval or rejection
+- Live telemetry charts and learned baselines
+- Alert history and remediation audit history
+- Before/after recovery measurements
+- Automated SRE post-mortem report
+
+The simulator uses the fault buttons locally. In live mode, the same buttons
+send bounded control requests to Service X.
+
+### Service X live controls
+
+In live mode, an additional **Service X live controls** panel appears. It is
+hidden in simulator mode. It controls Service X through PulseOps, so the
+browser only needs access to port 8000; it does not need direct access to port
+9100.
+
+Available values:
+
+| Control | Range | Meaning |
+|---|---:|---|
+| Traffic multiplier | `0.1`–`5.0` | Multiplies generated request traffic |
+| Delay multiplier | `0.1`–`5.0` | Multiplies Service X processing delay |
+| Error rate | `0.0`–`1.0` | Probability that a processed request fails |
+| Intake factor | `0.5`–`1.0` | Fraction of incoming work admitted |
+| Workers | `1`–`16` | Service X worker count |
+
+The API rejects unknown fields and values outside these ranges.
+
+## Causing a live incident
+
+With the default Service X settings:
+
+```text
+rate     = 12 requests/second
+workers  = 2
+delay    = 80 ms
+capacity = approximately 25 requests/second
+```
+
+Use the dashboard's live controls:
+
+```text
+Traffic multiplier: 4
+Delay multiplier:   1
+Error rate:         0
+Intake factor:      1
+Workers:            2
+```
+
+Click **Apply to Service X**. Traffic rises to approximately 48 requests per
+second while two workers can process only approximately 25 requests per
+second. After a few real seconds, queue depth and latency should rise, a
+critical incident should open, and `scale_workers` should normally be
+recommended.
+
+For a stronger combined incident:
+
+```text
+Traffic multiplier: 4
+Delay multiplier:   2
+Error rate:         0
+Intake factor:      1
+Workers:            2
+```
+
+To demonstrate elevated errors:
+
+```text
+Traffic multiplier: 1
+Delay multiplier:   1
+Error rate:         0.5
+Intake factor:      1
+Workers:            2
+```
+
+The direct equivalent of a load spike is:
+
+```bash
+curl -s -X POST http://127.0.0.1:9100/control \
+  -H 'Content-Type: application/json' \
+  -d '{"traffic_multiplier":4}'
+```
+
+## Incident-response workflow
+
+1. PulseOps collects telemetry on each tick.
+2. The detector learns a robust baseline using median, MAD, and IQR.
+3. Persistent deviations produce warning or critical alerts.
+4. Critical queue, latency, or error anomalies open an incident.
+5. PulseOps records a non-destructive snapshot and diagnoses the likely cause.
+6. A bounded action is proposed.
+7. An operator approves or rejects the action unless auto-approval is enabled.
+8. PulseOps executes only allowlisted actions.
+9. Post-action telemetry is compared with the learned baseline.
+10. The incident is marked recovered only when measured verification passes.
+
+The main allowlisted actions are:
+
+- `snapshot_state`
+- `scale_workers`
+- `throttle_intake`
+
+If recovery fails, PulseOps can propose a different bounded action. If no safe
+action remains, it escalates rather than inventing a shell command or
+unbounded remediation.
+
+## Reset behavior
+
+Clicking **Reset demo** resets PulseOps state, including detector baselines,
+alerts, incidents, action history for the current engine, and fault metadata.
+
+In live mode it also sends a reset to Service X and restores its startup
+configuration:
+
+- Original worker count
+- Traffic multiplier: `1`
+- Delay multiplier: `1`
+- Error rate: `0`
+- Intake factor: `1`
+- Normal traffic state
+
+This allows a complete repeatable demo without manually restarting Service X.
+
+The **Restore normal** button only restores normal traffic controls. It does
+not reset the detector history or worker count; use **Reset demo** for a clean
+run.
+
+## Recent implementation details
+
+- Added a separate `service_x/` package rather than embedding the target
+  service in PulseOps.
+- Added `LiveServiceAdapter` so the existing remediation engine can operate
+  against Service X without duplicating remediation logic.
+- Added live-mode selection with `--live-service-url`; simulation remains the
+  default.
+- Added live/simulation mode badges and live measurement labels to the
+  dashboard.
+- Added dashboard Service X controls with server-side range validation.
+- Added detailed Service X error propagation so rejected controls explain the
+  actual validation failure.
+- Fixed Service X control handling so returning control metrics cannot
+  deadlock.
+- Added live worker reset support; excess worker threads retire safely.
+- Preserved the automated SRE report's open/closed state across dashboard
+  refreshes.
+- Fixed concurrent-service warm-up so accelerated warm-up does not saturate
+  the queue before the baseline is learned.
+- Added live adapter and concurrent warm-up regression coverage.
 
 ## Architecture
 
 | Module | Role |
 |---|---|
-| `pulseops/simulator.py` | Team-owned payment service (queue, workers, latency, errors, simulated CPU). Faults: `load_spike`, `slow_downstream`. |
-| `service_x/server.py` | Separate standard-library HTTP service with real worker threads, queue, latency, errors and process CPU measurements. |
-| `pulseops/live_service.py` | Service X telemetry and bounded-control adapter used by live mode. |
-| `pulseops/detector.py` | Streaming robust detector: median/MAD/IQR baseline with scale floors, spike + sustained-shift tests, warm-up, persistence, cooldown with escalation, missing/NaN/constant handling, optional `SeasonalGuard`. |
-| `pulseops/diagnosis.py` | Rule-based explanation: *observed facts* vs *hypotheses* vs *not established*; picks the next bounded action. No LLM needed. |
-| `pulseops/remediation.py` | Allowlist (`snapshot_state`, `scale_workers`, `throttle_intake`), bounds, step limit, cooldown, loop prevention, approval, dry-run, audit JSONL. No shell, no model-written commands. |
-| `pulseops/verification.py` | Compares post-action samples with `baseline + 3·scale`. Verdicts: recovered / partially_recovered / recovery_failed / insufficient_evidence, with timeout. |
-| `pulseops/engine.py` | State machine tying the above together; severity routing. |
-| `pulseops/server.py`, `static/index.html` | Stdlib HTTP API + single-file offline dashboard (no CDN). |
+| `pulseops/simulator.py` | Original deterministic payment-service simulator |
+| `pulseops/concurrent_service.py` | In-process multithreaded simulation |
+| `service_x/server.py` | Independent live demo target |
+| `pulseops/live_service.py` | HTTP adapter for Service X telemetry and controls |
+| `pulseops/detector.py` | Streaming robust anomaly detector |
+| `pulseops/diagnosis.py` | Evidence-based diagnosis and recommendation |
+| `pulseops/remediation.py` | Allowlist, bounds, approval, cooldown, audit |
+| `pulseops/verification.py` | Measured before/after recovery verification |
+| `pulseops/engine.py` | Incident state machine |
+| `pulseops/server.py` | Local HTTP API and tick loop |
+| `static/index.html` | Single-file offline dashboard |
 
-### Severity routing
-* **warning** → logged (`logs/pulseops.log`, console), shown in the alert table, *no action*.
-* **critical on a service-impact metric** (queue depth, latency, error rate) → incident: automatic non-destructive **backup** (`runs/<ts>/backups/*.json`), diagnosis, proposed remediation awaiting human approval.
-* Telemetry gaps raise a warning (detector is blind), never an incident by themselves.
+## Safety properties
 
-### Safety properties (all covered by tests)
-* Unknown actions, non-integer/out-of-range workers, throttle outside `[0.5, 1.0)`, extra params → `blocked`.
-* Bounds re-checked at execution time; approval required for state-changing actions; rejected actions cannot run.
-* Same action+params is never repeated within an incident; per-action cooldown; max actions per incident.
-* After a non-recovered verdict only a *different* action can be proposed; if none remains, escalate to a human.
-* "Recovered" is only ever set from post-action measurements; dry-run and self-resolution are explicitly **not** credited to an action; recovery achieved by shedding load is annotated with the shed percentage.
+- Unknown actions are blocked.
+- Worker and intake values are range-checked.
+- State-changing remediation requires approval unless explicitly configured
+  for auto-approval.
+- Bounds are checked again at execution time.
+- The same action and parameters are not repeated within one incident.
+- Per-action cooldowns and maximum actions per incident prevent loops.
+- Dry-run actions do not change the target.
+- Self-resolution is not falsely credited to remediation.
+- Recovery is based on post-action measurements, not on a success-shaped
+  response from the control endpoint.
+- Telemetry gaps raise a warning and never open an incident by themselves.
 
-## Demo script (≈3 min)
-1. Start the server. Healthy badge, flat telemetry with dashed baselines (a 90 s simulated warm-up is pre-run).
-2. Click **Load spike** (×2). Queue, latency, errors, CPU climb.
-3. Within seconds an alert appears; an incident opens, a backup is taken automatically.
-4. Read the explanation: facts (numbers) vs hypotheses vs "not established".
-5. Show the proposed `scale_workers` with its rationale; click **Approve & execute** (or toggle dry-run first to show nothing changes).
-6. Watch latency/queue fall; banner switches VERIFYING → **RECOVERY VERIFIED** only when the criteria pass.
-7. Show the before/after table, timeline and audit table. Optional: **Slow downstream ×3** shows an honest *partially recovered* (latency can't drop below the slowed service time) and an escalation instead of a false success; **Load spike ×4** exceeds max capacity: scaling fails verification, then `throttle_intake` is offered as the next bounded step.
-
-## What the NAB files are (and aren't)
-See `scripts/profile_nab.py` output. Key facts: 4,032 points at 5 min (14 days); `24ae8d` is an almost idle instance
-with quantised values (0.066 / 0.134 / 0.2…), **a ≈1.5 spike every night at ~03:00–03:40** (benign, recurring) and two
-labelled real anomalies (2.344, 0.602); `5f5533` is noisy (~43, sd 4.3) with a mean drift/level change that is only
-≈0.7 σ; `53ea38` is ~1.8 with rare spikes. NAB labels are ±10 % wide windows around an anomaly, so scoring here is
-window based (hit / delay / false positives), not point F1.
-
-## Limitations / honesty notes
-* The simulator is a queueing toy; recovery numbers are properties of that model, not of real infrastructure.
-* `service_x` is a demo target for live mode; a real service can replace it by implementing the same `/metrics`, `/snapshot`, and `/control` contract.
-* Offline NAB results: configs were compared on the same labelled data (optimistic). `5f5533`'s level change and
-  `53ea38`'s windows are essentially undetectable by this detector at an acceptable false-positive rate — see `results/offline_nab.json`.
-* One incident at a time; one metric set; no persistence across server restarts besides audit/backups/logs.
-* The repository root also contains the original OmniAnomaly (TensorFlow 1.12 / Python 3.5-3.6). It is **not** used.
-
-### Live Service X mode
-
-Run the independent target in one terminal:
+## Tests and supporting scripts
 
 ```bash
-python3 -m service_x.server --port 9100 --rate 12 --workers 2 --delay-ms 80
+python3 -m unittest discover -s tests
+python3 scripts/demo_headless.py load_spike 2
+python3 scripts/eval_nab.py
+python3 scripts/profile_nab.py
 ```
 
-Run PulseOps in another terminal:
+The test suite covers simulator behavior, concurrent warm-up, HTTP API flow,
+remediation safety, live adapter contracts, and Service X control behavior.
 
-```bash
-python3 -m pulseops.server --port 8000 --live-service-url http://127.0.0.1:9100
-```
+## Offline NAB data
 
-In live mode, the dashboard shows a **Service X live controls** panel. It can
-change traffic rate, downstream delay, error rate, intake factor, and worker
-count through PulseOps' bounded control API. The panel is hidden in simulation
-mode. This keeps the browser connected only to PulseOps on port 8000; it does
-not need direct access to Service X on port 9100.
+The NAB scripts are separate from the live dashboard. Their results are stored
+in `results/offline_nab.json` and are never mixed with live-demo measurements.
+NAB scoring is window-based because labels represent time windows rather than
+single exact points.
 
-The existing load-spike and slow-downstream buttons also call Service X's
-bounded control API. To create an incident directly:
+## Limitations
 
-```bash
-curl -X POST http://127.0.0.1:9100/control \
-  -H 'Content-Type: application/json' -d '{"traffic_multiplier":4}'
-```
-
-The default simulator remains available by omitting `--live-service-url`.
+- Service X is a realistic demo target, not a production service.
+- The generic control endpoint should be replaced with an authenticated,
+  service-specific remediation API before connecting a real workload.
+- PulseOps currently handles one incident at a time.
+- Detector state and incidents are not persisted across server restarts;
+  audit logs, backups, and runtime logs are persisted.
+- The original OmniAnomaly directory in the repository is not used by the
+  PulseOps runtime.

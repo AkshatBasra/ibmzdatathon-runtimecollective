@@ -69,6 +69,8 @@ class PulseOpsEngine:
 
     # ------------------------------------------------------------------ lifecycle
     def reset(self) -> None:
+        if isinstance(getattr(self, "sim", None), LiveServiceAdapter):
+            self.sim.reset_service()
         if self.live_service_url:
             self.sim = LiveServiceAdapter(self.live_service_url)
         elif self.use_concurrent_service:

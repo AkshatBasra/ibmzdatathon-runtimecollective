@@ -115,5 +115,11 @@ class LiveServiceAdapter:
             self.fault_cleared_t = self._t
         self.fault = None
 
+    def reset_service(self) -> None:
+        self._control(reset=True)
+        self.fault = None
+        self.fault_started_t = None
+        self.fault_cleared_t = None
+
     def stop(self) -> None:
         return None
