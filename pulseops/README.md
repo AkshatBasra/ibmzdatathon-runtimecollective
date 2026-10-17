@@ -20,7 +20,13 @@ python scripts/profile_nab.py                 # descriptive stats of the NAB CSV
 # Or open PulseOps_Demo.ipynb directly in Jupyter Notebook on LinuxONE!
 ```
 
-Server flags: `--dry-run` (never change anything), `--auto-approve` (bounded actions only), `--tick 0.5`.
+Server flags:
+- `--dry-run`: record what would happen without modifying worker threads or intake
+- `--auto-approve`: skip operator sign-off (bounded actions only)
+- `--concurrent`: switch from discrete simulator to active multi-threaded payment engine with OS threads & cryptographic tokens
+- `--slm [auto|watsonx|local_endpoint|embedded]`: select SLM reasoning provider (defaults to auto/embedded)
+- `--tick 0.5`: simulated or wall interval per tick
+
 It binds to 127.0.0.1; on a shared LinuxONE host use `ssh -L 8000:127.0.0.1:8000 …` instead of `--host 0.0.0.0`.
 On LinuxONE: `python3 -c "import platform;print(platform.machine())"` should print `s390x`; nothing here needs a binary wheel.
 
@@ -28,13 +34,16 @@ On LinuxONE: `python3 -c "import platform;print(platform.machine())"` should pri
 
 | Module | Role |
 |---|---|
-| `pulseops/simulator.py` | Team-owned payment service (queue, workers, latency, errors, simulated CPU). Faults: `load_spike`, `slow_downstream`. |
+| `pulseops/simulator.py` | High-speed payment service queue simulation (discrete-event queueing model). |
+| `pulseops/concurrent_service.py` | Active multi-threaded payment microservice: OS thread pool, cryptographic CPACF tokenization, live queues. |
+| `pulseops/host_telemetry.py` | IBM Z LinuxONE (s390x) mainframe detection, /proc hardware parsing, real OS memory and CPU metrics. |
+| `pulseops/slm.py` | Small Language Model (SLM) intelligence: IBM WatsonX / Granite, local SLM endpoint, or embedded zero-dependency expert synthesizer. |
 | `pulseops/detector.py` | Streaming robust detector: median/MAD/IQR baseline with scale floors, spike + sustained-shift tests, warm-up, persistence, cooldown with escalation, missing/NaN/constant handling, optional `SeasonalGuard`. |
-| `pulseops/diagnosis.py` | Rule-based explanation: *observed facts* vs *hypotheses* vs *not established*; picks the next bounded action. No LLM needed. |
+| `pulseops/diagnosis.py` | Rule-based explanation: *observed facts* vs *hypotheses* vs *not established*; picks the next bounded action. |
 | `pulseops/remediation.py` | Allowlist (`snapshot_state`, `scale_workers`, `throttle_intake`), bounds, step limit, cooldown, loop prevention, approval, dry-run, audit JSONL. No shell, no model-written commands. |
 | `pulseops/verification.py` | Compares post-action samples with `baseline + 3·scale`. Verdicts: recovered / partially_recovered / recovery_failed / insufficient_evidence, with timeout. |
-| `pulseops/engine.py` | State machine tying the above together; severity routing. |
-| `pulseops/server.py`, `static/index.html` | Stdlib HTTP API + single-file offline dashboard (no CDN). |
+| `pulseops/engine.py` | State machine tying the above together; severity routing, SLM enrichment, and automated SRE post-mortems. |
+| `pulseops/server.py`, `static/index.html` | Stdlib HTTP API + responsive offline dashboard (no CDN) with AI Copilot analysis and LinuxONE host badges. |
 
 ### Severity routing
 * **warning** → logged (`logs/pulseops.log`, console), shown in the alert table, *no action*.

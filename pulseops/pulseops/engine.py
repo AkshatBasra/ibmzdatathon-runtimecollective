@@ -16,6 +16,9 @@ from .diagnosis import diagnose
 from .remediation import ALLOWLIST, RemediationConfig, RemediationEngine
 from .simulator import PaymentServiceSim, SimConfig
 from .verification import VerificationConfig, summarize_before, verify
+from .host_telemetry import get_host_info, get_live_system_metrics
+from .slm import PulseOpsSLM, SLMConfig
+from .concurrent_service import ConcurrentPaymentService
 
 log = logging.getLogger("pulseops")
 
@@ -43,7 +46,8 @@ class PulseOpsEngine:
     def __init__(self, sim_cfg: Optional[SimConfig] = None, rem_cfg: Optional[RemediationConfig] = None,
                  ver_cfg: Optional[VerificationConfig] = None, run_dir: Optional[str] = None,
                  auto_approve: bool = False, prewarm: int = 90, incident_cooldown_s: float = 15.0,
-                 history: int = 3600, wall_clock: Callable[[], float] = time.time):
+                 history: int = 3600, wall_clock: Callable[[], float] = time.time,
+                 use_concurrent_service: bool = False, slm_cfg: Optional[SLMConfig] = None):
         self.sim_cfg = sim_cfg or SimConfig()
         self.rem_cfg = rem_cfg or RemediationConfig()
         self.ver_cfg = ver_cfg or VerificationConfig()
@@ -55,11 +59,23 @@ class PulseOpsEngine:
         self.incident_cooldown_s = incident_cooldown_s
         self.history_len = history
         self.wall = wall_clock
+        self.use_concurrent_service = use_concurrent_service
+        self.host_info = get_host_info()
+        self.slm = PulseOpsSLM(slm_cfg)
         self.reset()
 
     # ------------------------------------------------------------------ lifecycle
     def reset(self) -> None:
-        self.sim = PaymentServiceSim(self.sim_cfg)
+        if self.use_concurrent_service:
+            self.sim = ConcurrentPaymentService(
+                base_arrival=self.sim_cfg.base_arrival,
+                base_service_ms=self.sim_cfg.base_service_ms,
+                workers=self.sim_cfg.workers,
+                queue_max=self.sim_cfg.queue_max,
+                timeout_s=self.sim_cfg.timeout_s
+            )
+        else:
+            self.sim = PaymentServiceSim(self.sim_cfg)
         self.detector = MultiMetricDetector(live_detector_configs())
         audit = os.path.join(self.run_dir, "audit.jsonl") if self.run_dir else None
         self.rem = RemediationEngine(self.sim, self.rem_cfg, audit_path=audit, wall_clock=self.wall)
@@ -167,6 +183,11 @@ class PulseOpsEngine:
     def _propose_next(self, inc: Dict[str, Any]) -> None:
         recent = list(self.history)[-3:]
         d = diagnose(recent, inc["baselines"], self.sim.workers, self.sim.intake_factor, self.rem_cfg, inc["tried"])
+        if self.slm:
+            try:
+                d["ai_explanation"] = self.slm.explain_incident(inc, self.host_info)
+            except Exception:
+                pass
         inc["diagnosis"] = d
         self._event(inc, "diagnosed", d["summary"])
         reco = d["recommendation"]
@@ -175,6 +196,13 @@ class PulseOpsEngine:
             inc["pending_action"] = None
             self._event(inc, "no_safe_action", "No remaining safe allowlisted action; escalate to a human operator")
             return
+        if self.slm:
+            try:
+                reco["ai_justification"] = self.slm.justify_action(
+                    reco["action"], reco["params"], reco["rationale"], reco.get("expected_effect", "")
+                )
+            except Exception:
+                pass
         rec = self.rem.propose(inc["id"], reco["action"], reco["params"], reco["rationale"], self.now)
         inc["action_ids"].append(rec.id)
         if rec.status == "blocked":
@@ -233,6 +261,11 @@ class PulseOpsEngine:
         inc["state"], inc["closed_t"] = state, now
         self.last_close_t = now
         self.detector.unfreeze()
+        if self.slm:
+            try:
+                inc["postmortem"] = self.slm.generate_postmortem(inc, self.host_info)
+            except Exception:
+                pass
         self._event(inc, f"closed:{state}", (inc.get("verification") or {}).get("reason", ""))
         log.info("INCIDENT %s closed: %s", inc["id"], state)
 
@@ -320,6 +353,10 @@ class PulseOpsEngine:
             "incident_list": [{"id": i["id"], "state": i["state"], "opened_t": i["opened_t"],
                                "closed_t": i["closed_t"]} for i in self.incidents.values()][::-1],
             "actions": [r.to_dict() for r in list(self.rem.records.values())[-30:]][::-1],
+            "host_info": self.host_info,
+            "live_system": get_live_system_metrics(),
+            "slm_provider": self.slm.last_provider_used if self.slm else "none",
+            "concurrent_engine": self.use_concurrent_service,
         }
 
     def incident_detail(self, iid: str) -> Optional[Dict[str, Any]]:

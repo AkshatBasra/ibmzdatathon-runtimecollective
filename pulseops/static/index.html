@@ -53,7 +53,8 @@ code{background:#eef1f6;padding:0 4px;border-radius:3px}
 <header>
   <h1>PulseOps</h1><span class="sub">detect &middot; respond &middot; prove recovery</span>
   <span id="health" class="badge healthy">HEALTHY</span>
-  <span class="sim">SIMULATED payment service &mdash; all metrics synthetic</span>
+  <span class="sim" id="host_badge" style="background:#1d3557;color:#a8dadc">Host: detecting...</span>
+  <span class="sim" id="slm_badge" style="background:#3a0ca3;color:#f72585">SLM: embedded</span>
   <span class="sub" id="clock"></span>
   <span style="flex:1"></span>
   <label class="sw"><input type="checkbox" id="dry"> dry-run</label>
@@ -159,13 +160,16 @@ function renderIncident(S){
   const [bc,bt]=stateBanner(inc),d=inc.diagnosis||{};let h=`<h2>Incident ${esc(inc.id)}</h2><div class="banner ${bc}">${esc(bt)}</div>`;
   h+=`<div class="small mute">opened t=${fmt(inc.opened_t,4)}s · detected ${inc.time_to_detect_s!=null?inc.time_to_detect_s+' s after (simulated) fault injection':''}</div>`;
   h+=`<p><b>${esc(d.summary||'')}</b></p>`;
+  if(d.ai_explanation){h+=`<div style="background:#f0f4ff;border-left:4px solid #2f6fe4;padding:8px 10px;border-radius:4px;margin:8px 0;font-size:12px"><div style="font-weight:700;color:#1c3d73;margin-bottom:3px">🤖 AI Copilot Analysis:</div><div>${esc(d.ai_explanation)}</div></div>`}
   if(d.facts){h+='<div class="small"><b>Observed facts</b> <span class="mute">(at detection time)</span><ul>'+d.facts.map(f=>'<li>'+esc(f)+'</li>').join('')+'</ul></div>'}
   if(d.hypotheses){h+='<div class="small"><b>Hypotheses</b> <span class="mute">(interpretation, not proven)</span><ul>'+d.hypotheses.map(x=>`<li><b>${esc(x.label)}</b> — ${esc(x.confidence)}<br><span class="mute">supported by: ${esc(x.supporting.join('; '))}</span><br><span class="mute">not established: ${esc(x.not_established.join('; '))}</span></li>`).join('')+'</ul></div>'}
   const pend=inc.pending_action&&inc.actions.find(a=>a.id===inc.pending_action);
-  if(pend){h+=`<div class="reco"><b>Recommended:</b> <code>${esc(pend.action)}</code> <code>${esc(JSON.stringify(pend.params))}</code><div class="small">${esc(pend.rationale)}</div>
-    <div class="small mute">${esc((d.recommendation||{}).expected_effect||'')}${S.mode.dry_run?' · DRY-RUN mode: will not change anything':''}</div>
+  if(pend){h+=`<div class="reco"><b>Recommended:</b> <code>${esc(pend.action)}</code> <code>${esc(JSON.stringify(pend.params))}</code><div class="small">${esc(pend.rationale)}</div>`;
+    if(pend.ai_justification){h+=`<div style="background:#eef8f2;border-left:3px solid #1a9d55;padding:6px 8px;border-radius:3px;margin:4px 0;font-size:11px"><b>Operational Justification:</b> ${esc(pend.ai_justification)}</div>`}
+    h+=`<div class="small mute">${esc((d.recommendation||{}).expected_effect||'')}${S.mode.dry_run?' · DRY-RUN mode: will not change anything':''}</div>
     <div class="btns" style="margin-top:6px"><button class="p" onclick="post('/api/approve',{action_id:'${esc(pend.id)}',who:'judge'})">Approve &amp; execute</button>
     <button onclick="post('/api/reject',{action_id:'${esc(pend.id)}',who:'judge'})">Reject</button></div></div>`}
+  if(inc.postmortem){h+=`<details style="margin:10px 0"><summary style="cursor:pointer;font-weight:700;color:#2f6fe4;font-size:12px">📄 View Automated SRE Post-Mortem Report</summary><pre style="background:#101826;color:#a8dadc;padding:10px;border-radius:6px;font-size:11px;overflow:auto;max-height:220px;white-space:pre-wrap">${esc(inc.postmortem)}</pre></details>`}
   if(inc.notes&&inc.notes.length)h+='<ul class="small">'+inc.notes.map(n=>'<li>'+esc(n)+'</li>').join('')+'</ul>';
   h+='<div class="small"><b>Timeline</b></div><div class="tl">'+inc.timeline.map(e=>`<div><span class="mute">t=${fmt(e.t,4)}s</span> <b>${esc(e.event)}</b> ${esc(e.detail)}</div>`).join('')+'</div>';
   el.innerHTML=h;const tl=el.querySelector('.tl');if(tl)tl.scrollTop=tl.scrollHeight;
@@ -186,6 +190,8 @@ function renderBA(S){
 function render(S){
   const hb=$('health');hb.textContent=S.health.toUpperCase();hb.className='badge '+S.health;
   $('clock').textContent='sim t='+Math.round(S.now)+'s'+(S.paused?' (paused)':'');
+  if(S.host_info){const h=S.host_info,ls=S.live_system||{};const mem=ls.process_memory_mb!=null?` · ${ls.process_memory_mb}MB`:'';$('host_badge').textContent=`${h.platform_label} (${h.cpu_count} CPU${mem})`}
+  if(S.slm_provider){$('slm_badge').textContent=`SLM: ${S.slm_provider}`}
   $('dry').checked=S.mode.dry_run;$('auto').checked=S.mode.auto_approve;$('pause').textContent=S.paused?'Resume':'Pause';
   $('svc').textContent=`workers ${S.workers}/${S.limits.max_workers} · intake ${(S.intake_factor*100).toFixed(0)}% · fault: ${S.fault?S.fault.kind+' ×'+S.fault.magnitude:'none'}`;
   mkCharts($('charts'),METRICS,'m');const mk=markers(S,S.incident);
