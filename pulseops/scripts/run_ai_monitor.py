@@ -25,6 +25,7 @@ if PROJECT_ROOT not in sys.path:
 
 from pulseops.host_telemetry import get_host_info, get_live_system_metrics  # noqa: E402
 from pulseops.slm import PulseOpsSLM, SLMConfig  # noqa: E402
+from scripts.train_ai_model import PureIsolationForest, PureIsolationTree  # noqa: E402
 
 MODEL_PATH = os.path.join(PROJECT_ROOT, "models", "ai_anomaly_detector.pkl")
 

@@ -4,6 +4,11 @@
 Trains on real server telemetry from the NAB benchmark (data/nab/ec2_cpu_utilization_*.csv),
 extracts rolling temporal feature windows, evaluates against ground-truth anomaly windows,
 and saves the trained model to `models/ai_anomaly_detector.pkl`.
+
+Supports:
+1. scikit-learn IsolationForest if installed
+2. Pure Python Standard-Library IsolationForest fallback (zero external dependencies,
+   immune to Ubuntu 24.04 PEP 668 externally-managed-environment restrictions).
 """
 from __future__ import annotations
 
@@ -12,9 +17,10 @@ import json
 import math
 import os
 import pickle
+import random
 import sys
 from datetime import datetime
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(HERE, ".."))
@@ -104,17 +110,127 @@ FEATURE_NAMES = [
 ]
 
 
-def check_and_import_sklearn():
-    """Ensure scikit-learn is available or prompt user."""
+# ==============================================================================
+# Pure Python Isolation Forest Implementation (Zero-dependency fallback)
+# ==============================================================================
+
+def _c_factor(n: int) -> float:
+    """Average path length of unsuccessful search in a Binary Search Tree (BST)."""
+    if n <= 1:
+        return 0.0
+    if n == 2:
+        return 1.0
+    return 2.0 * (math.log(n - 1) + 0.5772156649) - (2.0 * (n - 1) / n)
+
+
+class PureIsolationTree:
+    def __init__(self, depth: int, max_depth: int):
+        self.depth = depth
+        self.max_depth = max_depth
+        self.left: Optional[PureIsolationTree] = None
+        self.right: Optional[PureIsolationTree] = None
+        self.split_feat: Optional[int] = None
+        self.split_val: Optional[float] = None
+        self.size = 0
+
+    def fit(self, X: List[List[float]], rng: random.Random) -> PureIsolationTree:
+        self.size = len(X)
+        if self.depth >= self.max_depth or self.size <= 1:
+            return self
+
+        n_features = len(X[0])
+        feat_indices = list(range(n_features))
+        rng.shuffle(feat_indices)
+
+        for f in feat_indices:
+            vals = [row[f] for row in X]
+            min_v, max_v = min(vals), max(vals)
+            if min_v < max_v:
+                self.split_feat = f
+                self.split_val = rng.uniform(min_v, max_v)
+                left_X = [row for row in X if row[f] < self.split_val]
+                right_X = [row for row in X if row[f] >= self.split_val]
+                self.left = PureIsolationTree(self.depth + 1, self.max_depth).fit(left_X, rng)
+                self.right = PureIsolationTree(self.depth + 1, self.max_depth).fit(right_X, rng)
+                return self
+        return self
+
+    def path_length(self, x: List[float]) -> float:
+        if self.left is None or self.right is None or self.split_feat is None:
+            return self.depth + _c_factor(self.size)
+        if x[self.split_feat] < self.split_val:
+            return self.left.path_length(x)
+        else:
+            return self.right.path_length(x)
+
+
+class PureIsolationForest:
+    """Pure Python Standard Library implementation of Isolation Forest."""
+
+    def __init__(
+        self,
+        n_estimators: int = 100,
+        max_samples: int = 256,
+        contamination: float = 0.025,
+        random_state: int = 42,
+    ):
+        self.n_estimators = n_estimators
+        self.max_samples = max_samples
+        self.contamination = contamination
+        self.random_state = random_state
+        self.trees: List[PureIsolationTree] = []
+        self.c_subsample = _c_factor(max_samples)
+        self.threshold = 0.5
+
+    def fit(self, X: List[List[float]]) -> PureIsolationForest:
+        rng = random.Random(self.random_state)
+        n_samples = len(X)
+        sub_size = min(self.max_samples, n_samples)
+        max_depth = math.ceil(math.log2(max(2, sub_size)))
+        self.c_subsample = _c_factor(sub_size)
+
+        self.trees = []
+        for _ in range(self.n_estimators):
+            subsample = [X[i] for i in rng.sample(range(n_samples), sub_size)]
+            tree = PureIsolationTree(depth=0, max_depth=max_depth).fit(subsample, rng)
+            self.trees.append(tree)
+
+        # Calibrate threshold based on contamination
+        scores = self._raw_scores(X)
+        sorted_scores = sorted(scores, reverse=True)
+        idx = int(self.contamination * len(sorted_scores))
+        self.threshold = sorted_scores[min(idx, len(sorted_scores) - 1)]
+        return self
+
+    def _raw_scores(self, X: List[List[float]]) -> List[float]:
+        c = self.c_subsample if self.c_subsample > 0 else 1.0
+        scores = []
+        for x in X:
+            avg_path = sum(t.path_length(x) for t in self.trees) / len(self.trees)
+            anomaly_score = 2.0 ** (- (avg_path / c))
+            scores.append(anomaly_score)
+        return scores
+
+    def decision_function(self, X: List[List[float]]) -> List[float]:
+        # Positive = normal, Negative = anomaly (matching scikit-learn convention)
+        scores = self._raw_scores(X)
+        return [self.threshold - s for s in scores]
+
+    def predict(self, X: List[List[float]]) -> List[int]:
+        # -1 = anomaly, 1 = normal
+        scores = self._raw_scores(X)
+        return [-1 if s >= self.threshold else 1 for s in scores]
+
+
+def get_model_class():
+    """Detect scikit-learn or fall back smoothly to Pure Python Isolation Forest."""
     try:
         from sklearn.ensemble import IsolationForest
-        return IsolationForest
+        print("  [Backend] Using accelerated scikit-learn IsolationForest")
+        return IsolationForest, "scikit-learn"
     except ImportError:
-        print("[!] scikit-learn is not installed. Installing via pip...")
-        import subprocess
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "scikit-learn", "numpy"])
-        from sklearn.ensemble import IsolationForest
-        return IsolationForest
+        print("  [Backend] Using native zero-dependency Pure Python IsolationForest (PEP 668 safe)")
+        return PureIsolationForest, "pure_python"
 
 
 def train():
@@ -122,7 +238,7 @@ def train():
     print(" [*] IBM Z / LinuxONE AI Anomaly Detection Model Training")
     print("=" * 70)
 
-    IsolationForest = check_and_import_sklearn()
+    ModelClass, backend_type = get_model_class()
 
     all_features: List[List[float]] = []
     dataset_stats = []
@@ -144,15 +260,23 @@ def train():
     print(f"\nTotal training matrix size: {len(all_features)} samples x {len(FEATURE_NAMES)} features")
 
     # [2/4] Train Isolation Forest
-    print("\n[2/4] Training Isolation Forest Model on IBM Z CPU...")
-    # 2.5% contamination matches standard server anomaly rates in NAB
-    model = IsolationForest(
-        n_estimators=120,
-        max_samples="auto",
-        contamination=0.025,
-        random_state=42,
-        n_jobs=-1,
-    )
+    print(f"\n[2/4] Training Isolation Forest ({backend_type}) on IBM Z CPU...")
+    if backend_type == "scikit-learn":
+        model = ModelClass(
+            n_estimators=100,
+            max_samples="auto",
+            contamination=0.025,
+            random_state=42,
+            n_jobs=-1,
+        )
+    else:
+        model = ModelClass(
+            n_estimators=60,
+            max_samples=256,
+            contamination=0.025,
+            random_state=42,
+        )
+
     t0 = datetime.now()
     model.fit(all_features)
     train_duration = (datetime.now() - t0).total_seconds()
@@ -210,7 +334,8 @@ def train():
         pickle.dump(model, f)
 
     metadata = {
-        "model_type": "IsolationForest",
+        "model_type": f"IsolationForest ({backend_type})",
+        "backend": backend_type,
         "features": FEATURE_NAMES,
         "window_size": 10,
         "contamination": 0.025,
