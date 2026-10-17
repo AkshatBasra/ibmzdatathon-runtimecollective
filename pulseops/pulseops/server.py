@@ -105,6 +105,10 @@ class App:
                 self.paused = bool(body.get("paused", True))
             elif path == "/api/reset":
                 e.reset()
+            elif path == "/api/host/spike":
+                dur = int(body.get("duration", 8))
+                if hasattr(e, "ai_host_detector"):
+                    e.ai_host_detector.trigger_spike(dur)
             else:
                 raise KeyError(path)
         return {"ok": True}

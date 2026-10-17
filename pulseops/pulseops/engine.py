@@ -20,6 +20,7 @@ from .host_telemetry import get_host_info, get_live_system_metrics
 from .slm import PulseOpsSLM, SLMConfig
 from .concurrent_service import ConcurrentPaymentService
 from .live_service import LiveServiceAdapter
+from .ai_detector import AIHostDetector
 
 log = logging.getLogger("pulseops")
 
@@ -106,6 +107,8 @@ class PulseOpsEngine:
                 self.tick()
         self.warmup_end_t = self.sim.t
         self.alerts.clear()
+        models_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
+        self.ai_host_detector = AIHostDetector(models_dir=models_dir, slm=self.slm)
 
     @property
     def now(self) -> float:
@@ -142,6 +145,10 @@ class PulseOpsEngine:
         for a in self.detector.update(sample["t"], sample):
             self._on_anomaly(a.to_dict(), sample)
         self._advance_incidents(sample)
+        try:
+            self.ai_host_detector.tick()
+        except Exception:
+            pass
         return sample
 
     # ------------------------------------------------------------------ anomalies
@@ -385,6 +392,7 @@ class PulseOpsEngine:
             "concurrent_engine": self.use_concurrent_service,
             "service_mode": "live" if self.live_service_url else ("concurrent" if self.use_concurrent_service else "simulation"),
             "live_service_url": self.live_service_url,
+            "ai_host": self.ai_host_detector.get_state() if hasattr(self, "ai_host_detector") else None,
         }
 
     def incident_detail(self, iid: str) -> Optional[Dict[str, Any]]:
