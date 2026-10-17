@@ -16,6 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict
 
 from .engine import PulseOpsEngine
+from .live_service import LiveServiceError
 from .remediation import RemediationConfig
 from .simulator import SimConfig
 
@@ -68,6 +69,30 @@ class App:
                 e.inject_fault(kind, float(mag))
             elif path == "/api/fault/clear":
                 e.clear_fault()
+            elif path == "/api/service-x/control":
+                if not e.live_service_url:
+                    raise ValueError("Service X controls require live mode")
+                control = {}
+                for key, low, high, integer in (
+                    ("traffic_multiplier", 0.1, 5.0, False),
+                    ("service_delay_multiplier", 0.1, 5.0, False),
+                    ("error_rate", 0.0, 1.0, False),
+                    ("intake_factor", 0.5, 1.0, False),
+                    ("workers", 1, 16, True),
+                ):
+                    if key not in body:
+                        continue
+                    value = body[key]
+                    if isinstance(value, bool) or not isinstance(value, (int, float)):
+                        raise ValueError(f"{key} must be numeric")
+                    if integer and (not isinstance(value, int) or not low <= value <= high):
+                        raise ValueError(f"{key} must be an integer in [{low}, {high}]")
+                    if not integer and not low <= float(value) <= high:
+                        raise ValueError(f"{key} must be in [{low}, {high}]")
+                    control[key] = int(value) if integer else float(value)
+                if not control:
+                    raise ValueError("at least one Service X control is required")
+                return {"ok": True, "metrics": e.control_live_service(control)}
             elif path in ("/api/approve", "/api/reject"):
                 aid = str(body.get("action_id", ""))
                 if aid not in e.rem.records:
@@ -126,7 +151,7 @@ def make_handler(app: App):
                 return self._send(200, app.handle_post(path, body))
             except KeyError:
                 return self._send(404, {"error": "not found"})
-            except (ValueError, PermissionError, json.JSONDecodeError) as ex:
+            except (ValueError, PermissionError, LiveServiceError, json.JSONDecodeError) as ex:
                 return self._send(400, {"error": str(ex)})
 
     return Handler

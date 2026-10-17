@@ -126,6 +126,13 @@ class PulseOpsEngine:
         source = "live Service X" if self.live_service_url else "simulated"
         log.info("FAULT cleared (%s) at t=%.0f", source, self.now)
 
+    def control_live_service(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        if not self.live_service_url:
+            raise ValueError("Service X controls require --live-service-url")
+        if not isinstance(self.sim, LiveServiceAdapter):
+            raise RuntimeError("live Service X adapter is not available")
+        return self.sim.control(payload)
+
     # ------------------------------------------------------------------ main loop
     def tick(self) -> Dict[str, Any]:
         sample = self.sim.step()

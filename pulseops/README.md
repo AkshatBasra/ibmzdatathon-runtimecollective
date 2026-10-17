@@ -90,8 +90,14 @@ Run PulseOps in another terminal:
 python3 -m pulseops.server --port 8000 --live-service-url http://127.0.0.1:9100
 ```
 
-The dashboard's load-spike and slow-downstream controls call Service X's bounded
-control API. To create an incident directly:
+In live mode, the dashboard shows a **Service X live controls** panel. It can
+change traffic rate, downstream delay, error rate, intake factor, and worker
+count through PulseOps' bounded control API. The panel is hidden in simulation
+mode. This keeps the browser connected only to PulseOps on port 8000; it does
+not need direct access to Service X on port 9100.
+
+The existing load-spike and slow-downstream buttons also call Service X's
+bounded control API. To create an incident directly:
 
 ```bash
 curl -X POST http://127.0.0.1:9100/control \

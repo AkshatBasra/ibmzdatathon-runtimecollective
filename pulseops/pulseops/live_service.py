@@ -77,6 +77,13 @@ class LiveServiceAdapter:
     def _control(self, **payload: Any) -> Dict[str, Any]:
         return self._request("/control", method="POST", payload=payload)
 
+    def control(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        allowed = {"traffic_multiplier", "service_delay_multiplier", "error_rate", "intake_factor", "workers"}
+        unknown = sorted(set(payload) - allowed)
+        if unknown:
+            raise ValueError(f"unsupported Service X controls: {', '.join(unknown)}")
+        return self._control(**payload)
+
     def set_workers(self, n: int) -> None:
         self._control(workers=int(n))
 

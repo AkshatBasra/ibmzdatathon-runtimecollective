@@ -47,6 +47,10 @@ ul{margin:4px 0 4px 18px;padding:0}li{margin:2px 0}
 .scroll{max-height:220px;overflow:auto}
 code{background:#eef1f6;padding:0 4px;border-radius:3px}
 .err{color:var(--crit);font-size:12px;min-height:16px}
+.control-grid{display:grid;grid-template-columns:repeat(5,minmax(100px,1fr));gap:8px;align-items:end}
+.control-grid label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mute)}
+.control-grid input{width:100%;padding:5px;border:1px solid var(--line);border-radius:4px;font:inherit}
+@media(max-width:700px){.control-grid{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -77,6 +81,22 @@ code{background:#eef1f6;padding:0 4px;border-radius:3px}
       </div>
       <div class="err" id="err"></div>
     </div>
+    <div class="card" id="live_controls" style="margin-bottom:12px;display:none">
+      <h2>Service X live controls</h2>
+      <div class="small mute" style="margin-bottom:8px">These controls affect the independent Service X process, not the PulseOps dashboard.</div>
+      <div class="control-grid">
+        <label>Traffic ×<input id="sx_traffic" type="number" min="0.1" max="5" step="0.1" value="1"></label>
+        <label>Delay ×<input id="sx_delay" type="number" min="0.1" max="5" step="0.1" value="1"></label>
+        <label>Error rate<input id="sx_errors" type="number" min="0" max="1" step="0.05" value="0"></label>
+        <label>Intake factor<input id="sx_intake" type="number" min="0.5" max="1" step="0.05" value="1"></label>
+        <label>Workers<input id="sx_workers" type="number" min="1" max="16" step="1" value="2"></label>
+      </div>
+      <div class="btns" style="margin-top:8px">
+        <button class="p" onclick="applyServiceXControls()">Apply to Service X</button>
+        <button class="ok" onclick="clearServiceXControls()">Restore normal</button>
+        <span class="small mute" id="sx_status"></span>
+      </div>
+    </div>
     <div class="card">
       <h2>Live telemetry <span class="mute" style="text-transform:none">(dashed = learned baseline; markers: fault / incident / action)</span></h2>
       <div class="grid2" id="charts"></div>
@@ -106,6 +126,21 @@ async function post(p,b){
     const j=await r.json();$('err').textContent=r.ok?'':(j.error||'error');refresh();}catch(e){$('err').textContent=String(e)}
 }
 function inject(kind){post('/api/fault',{kind,magnitude:parseFloat($('mag').value)})}
+async function applyServiceXControls(){
+  await post('/api/service-x/control',{
+    traffic_multiplier:parseFloat($('sx_traffic').value),
+    service_delay_multiplier:parseFloat($('sx_delay').value),
+    error_rate:parseFloat($('sx_errors').value),
+    intake_factor:parseFloat($('sx_intake').value),
+    workers:parseInt($('sx_workers').value,10)
+  });
+  $('sx_status').textContent='Control sent to Service X';
+}
+async function clearServiceXControls(){
+  $('sx_traffic').value=1;$('sx_delay').value=1;$('sx_errors').value=0;$('sx_intake').value=1;
+  await post('/api/service-x/control',{traffic_multiplier:1,service_delay_multiplier:1,error_rate:0,intake_factor:1});
+  $('sx_status').textContent='Normal controls restored';
+}
 $('dry').onchange=e=>post('/api/mode',{dry_run:e.target.checked});
 $('auto').onchange=e=>post('/api/mode',{auto_approve:e.target.checked});
 $('pause').onclick=()=>post('/api/pause',{paused:!(S&&S.paused)});
@@ -192,6 +227,7 @@ function render(S){
   const hb=$('health');hb.textContent=S.health.toUpperCase();hb.className='badge '+S.health;
   $('clock').textContent=(S.service_mode==='live'?'live':'sim')+' t='+Math.round(S.now)+'s'+(S.paused?' (paused)':'');
   $('service_badge').textContent=`Mode: ${S.service_mode||'simulation'}`;
+  $('live_controls').style.display=S.service_mode==='live'?'block':'none';
   if(S.host_info){const h=S.host_info,ls=S.live_system||{};const mem=ls.process_memory_mb!=null?` · ${ls.process_memory_mb}MB`:'';$('host_badge').textContent=`${h.platform_label} (${h.cpu_count} CPU${mem})`}
   if(S.slm_provider){$('slm_badge').textContent=`SLM: ${S.slm_provider}`}
   $('dry').checked=S.mode.dry_run;$('auto').checked=S.mode.auto_approve;$('pause').textContent=S.paused?'Resume':'Pause';
