@@ -1,0 +1,401 @@
+{
+  "note": "OFFLINE historical replay on NAB. Not live-demo results. Configs compared on the same labelled data => optimistic. Series values are of unspecified unit.",
+  "results": {
+    "ec2_cpu_utilization_24ae8d": {
+      "default": {
+        "alerts": 128,
+        "false_positive_alerts": 112,
+        "fp_per_day": 8.002,
+        "windows": 2,
+        "windows_hit": 2,
+        "window_recall": 1.0,
+        "per_window": [
+          {
+            "window": [
+              "2014-02-26 13:45:00",
+              "2014-02-27 06:25:00"
+            ],
+            "hit": true,
+            "delay_min": -335.0
+          },
+          {
+            "window": [
+              "2014-02-27 08:55:00",
+              "2014-02-28 01:35:00"
+            ],
+            "hit": true,
+            "delay_min": -390.0
+          }
+        ]
+      },
+      "sensitive": {
+        "alerts": 193,
+        "false_positive_alerts": 170,
+        "fp_per_day": 12.146,
+        "windows": 2,
+        "windows_hit": 2,
+        "window_recall": 1.0,
+        "per_window": [
+          {
+            "window": [
+              "2014-02-26 13:45:00",
+              "2014-02-27 06:25:00"
+            ],
+            "hit": true,
+            "delay_min": -450.0
+          },
+          {
+            "window": [
+              "2014-02-27 08:55:00",
+              "2014-02-28 01:35:00"
+            ],
+            "hit": true,
+            "delay_min": -340.0
+          }
+        ]
+      },
+      "conservative": {
+        "alerts": 59,
+        "false_positive_alerts": 52,
+        "fp_per_day": 3.715,
+        "windows": 2,
+        "windows_hit": 2,
+        "window_recall": 1.0,
+        "per_window": [
+          {
+            "window": [
+              "2014-02-26 13:45:00",
+              "2014-02-27 06:25:00"
+            ],
+            "hit": true,
+            "delay_min": -440.0
+          },
+          {
+            "window": [
+              "2014-02-27 08:55:00",
+              "2014-02-28 01:35:00"
+            ],
+            "hit": true,
+            "delay_min": -490.0
+          }
+        ]
+      },
+      "up_seasonal": {
+        "alerts": 16,
+        "false_positive_alerts": 14,
+        "fp_per_day": 1.0,
+        "windows": 2,
+        "windows_hit": 2,
+        "window_recall": 1.0,
+        "per_window": [
+          {
+            "window": [
+              "2014-02-26 13:45:00",
+              "2014-02-27 06:25:00"
+            ],
+            "hit": true,
+            "delay_min": 0.0
+          },
+          {
+            "window": [
+              "2014-02-27 08:55:00",
+              "2014-02-28 01:35:00"
+            ],
+            "hit": true,
+            "delay_min": 0.0
+          }
+        ]
+      },
+      "up_seasonal_sensitive": {
+        "alerts": 25,
+        "false_positive_alerts": 22,
+        "fp_per_day": 1.572,
+        "windows": 2,
+        "windows_hit": 2,
+        "window_recall": 1.0,
+        "per_window": [
+          {
+            "window": [
+              "2014-02-26 13:45:00",
+              "2014-02-27 06:25:00"
+            ],
+            "hit": true,
+            "delay_min": 0.0
+          },
+          {
+            "window": [
+              "2014-02-27 08:55:00",
+              "2014-02-28 01:35:00"
+            ],
+            "hit": true,
+            "delay_min": 0.0
+          }
+        ]
+      }
+    },
+    "ec2_cpu_utilization_5f5533": {
+      "default": {
+        "alerts": 1,
+        "false_positive_alerts": 0,
+        "fp_per_day": 0.0,
+        "windows": 2,
+        "windows_hit": 1,
+        "window_recall": 0.5,
+        "per_window": [
+          {
+            "window": [
+              "2014-02-18 16:02:00",
+              "2014-02-19 08:42:00"
+            ],
+            "hit": false,
+            "delay_min": null
+          },
+          {
+            "window": [
+              "2014-02-24 10:17:00",
+              "2014-02-25 02:57:00"
+            ],
+            "hit": true,
+            "delay_min": 200.0
+          }
+        ]
+      },
+      "sensitive": {
+        "alerts": 31,
+        "false_positive_alerts": 27,
+        "fp_per_day": 1.929,
+        "windows": 2,
+        "windows_hit": 1,
+        "window_recall": 0.5,
+        "per_window": [
+          {
+            "window": [
+              "2014-02-18 16:02:00",
+              "2014-02-19 08:42:00"
+            ],
+            "hit": false,
+            "delay_min": null
+          },
+          {
+            "window": [
+              "2014-02-24 10:17:00",
+              "2014-02-25 02:57:00"
+            ],
+            "hit": true,
+            "delay_min": 130.0
+          }
+        ]
+      },
+      "conservative": {
+        "alerts": 0,
+        "false_positive_alerts": 0,
+        "fp_per_day": 0.0,
+        "windows": 2,
+        "windows_hit": 0,
+        "window_recall": 0.0,
+        "per_window": [
+          {
+            "window": [
+              "2014-02-18 16:02:00",
+              "2014-02-19 08:42:00"
+            ],
+            "hit": false,
+            "delay_min": null
+          },
+          {
+            "window": [
+              "2014-02-24 10:17:00",
+              "2014-02-25 02:57:00"
+            ],
+            "hit": false,
+            "delay_min": null
+          }
+        ]
+      },
+      "up_seasonal": {
+        "alerts": 0,
+        "false_positive_alerts": 0,
+        "fp_per_day": 0.0,
+        "windows": 2,
+        "windows_hit": 0,
+        "window_recall": 0.0,
+        "per_window": [
+          {
+            "window": [
+              "2014-02-18 16:02:00",
+              "2014-02-19 08:42:00"
+            ],
+            "hit": false,
+            "delay_min": null
+          },
+          {
+            "window": [
+              "2014-02-24 10:17:00",
+              "2014-02-25 02:57:00"
+            ],
+            "hit": false,
+            "delay_min": null
+          }
+        ]
+      },
+      "up_seasonal_sensitive": {
+        "alerts": 0,
+        "false_positive_alerts": 0,
+        "fp_per_day": 0.0,
+        "windows": 2,
+        "windows_hit": 0,
+        "window_recall": 0.0,
+        "per_window": [
+          {
+            "window": [
+              "2014-02-18 16:02:00",
+              "2014-02-19 08:42:00"
+            ],
+            "hit": false,
+            "delay_min": null
+          },
+          {
+            "window": [
+              "2014-02-24 10:17:00",
+              "2014-02-25 02:57:00"
+            ],
+            "hit": false,
+            "delay_min": null
+          }
+        ]
+      }
+    },
+    "ec2_cpu_utilization_53ea38": {
+      "default": {
+        "alerts": 12,
+        "false_positive_alerts": 10,
+        "fp_per_day": 0.714,
+        "windows": 2,
+        "windows_hit": 2,
+        "window_recall": 1.0,
+        "per_window": [
+          {
+            "window": [
+              "2014-02-19 10:50:00",
+              "2014-02-20 03:30:00"
+            ],
+            "hit": true,
+            "delay_min": 480.0
+          },
+          {
+            "window": [
+              "2014-02-23 11:45:00",
+              "2014-02-24 04:25:00"
+            ],
+            "hit": true,
+            "delay_min": 455.0
+          }
+        ]
+      },
+      "sensitive": {
+        "alerts": 105,
+        "false_positive_alerts": 92,
+        "fp_per_day": 6.573,
+        "windows": 2,
+        "windows_hit": 2,
+        "window_recall": 1.0,
+        "per_window": [
+          {
+            "window": [
+              "2014-02-19 10:50:00",
+              "2014-02-20 03:30:00"
+            ],
+            "hit": true,
+            "delay_min": -360.0
+          },
+          {
+            "window": [
+              "2014-02-23 11:45:00",
+              "2014-02-24 04:25:00"
+            ],
+            "hit": true,
+            "delay_min": -325.0
+          }
+        ]
+      },
+      "conservative": {
+        "alerts": 0,
+        "false_positive_alerts": 0,
+        "fp_per_day": 0.0,
+        "windows": 2,
+        "windows_hit": 0,
+        "window_recall": 0.0,
+        "per_window": [
+          {
+            "window": [
+              "2014-02-19 10:50:00",
+              "2014-02-20 03:30:00"
+            ],
+            "hit": false,
+            "delay_min": null
+          },
+          {
+            "window": [
+              "2014-02-23 11:45:00",
+              "2014-02-24 04:25:00"
+            ],
+            "hit": false,
+            "delay_min": null
+          }
+        ]
+      },
+      "up_seasonal": {
+        "alerts": 0,
+        "false_positive_alerts": 0,
+        "fp_per_day": 0.0,
+        "windows": 2,
+        "windows_hit": 0,
+        "window_recall": 0.0,
+        "per_window": [
+          {
+            "window": [
+              "2014-02-19 10:50:00",
+              "2014-02-20 03:30:00"
+            ],
+            "hit": false,
+            "delay_min": null
+          },
+          {
+            "window": [
+              "2014-02-23 11:45:00",
+              "2014-02-24 04:25:00"
+            ],
+            "hit": false,
+            "delay_min": null
+          }
+        ]
+      },
+      "up_seasonal_sensitive": {
+        "alerts": 12,
+        "false_positive_alerts": 12,
+        "fp_per_day": 0.857,
+        "windows": 2,
+        "windows_hit": 0,
+        "window_recall": 0.0,
+        "per_window": [
+          {
+            "window": [
+              "2014-02-19 10:50:00",
+              "2014-02-20 03:30:00"
+            ],
+            "hit": false,
+            "delay_min": null
+          },
+          {
+            "window": [
+              "2014-02-23 11:45:00",
+              "2014-02-24 04:25:00"
+            ],
+            "hit": false,
+            "delay_min": null
+          }
+        ]
+      }
+    }
+  }
+}

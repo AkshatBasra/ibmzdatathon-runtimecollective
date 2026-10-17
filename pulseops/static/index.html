@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PulseOps</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#1c2430;--mute:#6b7685;--line:#e2e6ec;--ok:#1a9d55;--warn:#d98a00;--crit:#d6364b;--info:#2f6fe4;--grey:#7a8494}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:10px 18px;background:#101826;color:#fff}
+header h1{font-size:18px;margin:0;letter-spacing:.3px}
+header .sub{color:#9fb0c8;font-size:12px}
+.badge{padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;letter-spacing:.5px;color:#fff}
+.healthy{background:var(--ok)}.degraded{background:var(--warn)}.critical{background:var(--crit)}
+.sim{background:#3b4a63;color:#cfe0ff;padding:2px 8px;border-radius:4px;font-size:11px}
+main{display:grid;grid-template-columns:minmax(0,2fr) minmax(320px,1fr);gap:12px;padding:12px 18px;max-width:1500px;margin:auto}
+@media(max-width:1000px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--mute);margin:0 0 8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:700px){.grid2{grid-template-columns:1fr}}
+.chart{position:relative}
+.chart .t{font-size:12px;color:var(--mute);display:flex;justify-content:space-between}
+.chart .t b{color:var(--ink)}
+canvas{width:100%;height:120px;display:block}
+.btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 12px;font:inherit;cursor:pointer}
+button:hover{background:#f0f3f8}
+button.p{background:var(--info);color:#fff;border-color:var(--info)}button.d{background:var(--crit);color:#fff;border-color:var(--crit)}
+button.ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+button:disabled{opacity:.45;cursor:not-allowed}
+label.sw{display:flex;gap:6px;align-items:center;color:#dfe8f5;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{text-align:left;padding:4px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mute);font-weight:600}
+.pill{padding:1px 8px;border-radius:10px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap}
+.s-warning{background:var(--warn)}.s-critical{background:var(--crit)}.s-info{background:var(--info)}
+.banner{padding:10px 12px;border-radius:6px;font-weight:700;color:#fff;margin:8px 0}
+.b-recovered{background:var(--ok)}.b-partial{background:var(--warn)}.b-failed{background:var(--crit)}
+.b-verifying{background:var(--info)}.b-neutral{background:var(--grey)}
+ul{margin:4px 0 4px 18px;padding:0}li{margin:2px 0}
+.mute{color:var(--mute)}.small{font-size:12px}
+.reco{border:1px dashed var(--info);background:#f3f7ff;border-radius:6px;padding:8px;margin:8px 0}
+.tl{max-height:180px;overflow:auto;font-size:12px}
+.tl div{padding:2px 0;border-bottom:1px solid var(--line)}
+.scroll{max-height:220px;overflow:auto}
+code{background:#eef1f6;padding:0 4px;border-radius:3px}
+.err{color:var(--crit);font-size:12px;min-height:16px}
+</style>
+</head>
+<body>
+<header>
+  <h1>PulseOps</h1><span class="sub">detect &middot; respond &middot; prove recovery</span>
+  <span id="health" class="badge healthy">HEALTHY</span>
+  <span class="sim">SIMULATED payment service &mdash; all metrics synthetic</span>
+  <span class="sub" id="clock"></span>
+  <span style="flex:1"></span>
+  <label class="sw"><input type="checkbox" id="dry"> dry-run</label>
+  <label class="sw"><input type="checkbox" id="auto"> auto-approve</label>
+  <button id="pause">Pause</button>
+  <button id="reset">Reset demo</button>
+</header>
+<main>
+  <section>
+    <div class="card" style="margin-bottom:12px">
+      <h2>Scenario controls (isolated simulation)</h2>
+      <div class="btns">
+        <button class="ok" onclick="post('/api/fault/clear')">Normal traffic</button>
+        <span class="mute small">Inject:</span>
+        <button class="d" onclick="inject('load_spike')">Load spike</button>
+        <button class="d" onclick="inject('slow_downstream')">Slow downstream</button>
+        <label class="small">magnitude &times;<input id="mag" type="number" min="1" max="5" step="0.1" value="2" style="width:60px"></label>
+        <span class="small mute" id="svc"></span>
+      </div>
+      <div class="err" id="err"></div>
+    </div>
+    <div class="card">
+      <h2>Live telemetry <span class="mute" style="text-transform:none">(dashed = learned baseline; markers: fault / incident / action)</span></h2>
+      <div class="grid2" id="charts"></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <h2>Before / after remediation <span class="mute" style="text-transform:none">(same incident, measured samples)</span></h2>
+      <div class="grid2" id="ba"></div>
+      <div id="batable"></div>
+    </div>
+  </section>
+  <aside>
+    <div class="card" id="inc"><h2>Incident</h2><div class="mute">No incident. Inject a fault to start the demo.</div></div>
+    <div class="card" style="margin-top:12px"><h2>Anomaly alerts</h2><div class="scroll"><table id="alerts"></table></div></div>
+    <div class="card" style="margin-top:12px"><h2>Action history (audit)</h2><div class="scroll"><table id="actions"></table></div></div>
+  </aside>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=(x,d=3)=>x==null||isNaN(x)?'n/a':(Math.abs(x)>=100?x.toFixed(0):Number(x).toPrecision(d));
+const METRICS=[['queue_depth','Queue depth (requests)'],['latency_ms','Latency (ms)'],['error_rate','Error rate'],['cpu_pct','CPU % (simulated)'],['arrival_rate','Arrival rate (req/s)'],['throughput','Throughput (req/s)']];
+const COLORS={queue_depth:'#2f6fe4',latency_ms:'#d6364b',error_rate:'#d98a00',cpu_pct:'#7b4fd1',arrival_rate:'#1a9d55',throughput:'#118a8a'};
+let S=null;
+
+async function post(p,b){
+  try{const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});
+    const j=await r.json();$('err').textContent=r.ok?'':(j.error||'error');refresh();}catch(e){$('err').textContent=String(e)}
+}
+function inject(kind){post('/api/fault',{kind,magnitude:parseFloat($('mag').value)})}
+$('dry').onchange=e=>post('/api/mode',{dry_run:e.target.checked});
+$('auto').onchange=e=>post('/api/mode',{auto_approve:e.target.checked});
+$('pause').onclick=()=>post('/api/pause',{paused:!(S&&S.paused)});
+$('reset').onclick=()=>post('/api/reset');
+
+function draw(cv,series,key,o){
+  o=o||{};const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+  if(cv.width!==W*dpr||cv.height!==H*dpr){cv.width=W*dpr;cv.height=H*dpr}
+  const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);
+  const pts=series.filter(p=>p[key]!=null&&isFinite(p[key]));if(pts.length<2)return;
+  const t0=pts[0].t,t1=pts[pts.length-1].t||t0+1;
+  let lo=0,hi=Math.max(...pts.map(p=>p[key]));
+  if(o.baseline!=null)hi=Math.max(hi,o.baseline*1.2);if(hi<=lo)hi=lo+1;hi*=1.08;
+  const L=34,R=6,T=6,B=16,x=t=>L+(t-t0)/(t1-t0||1)*(W-L-R),y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
+  c.strokeStyle='#e2e6ec';c.fillStyle='#6b7685';c.font='10px system-ui';c.lineWidth=1;
+  for(let i=0;i<=3;i++){const v=lo+(hi-lo)*i/3,yy=y(v);c.beginPath();c.moveTo(L,yy);c.lineTo(W-R,yy);c.stroke();c.fillText(fmt(v,2),2,yy+3)}
+  c.fillText(Math.round(t0)+'s',L,H-3);c.fillText(Math.round(t1)+'s',W-R-28,H-3);
+  (o.markers||[]).forEach((m,mi)=>{if(m.t==null||m.t<t0||m.t>t1)return;const xx=x(m.t);c.strokeStyle=m.color;c.setLineDash([3,3]);c.beginPath();c.moveTo(xx,T);c.lineTo(xx,H-B);c.stroke();c.setLineDash([]);c.fillStyle=m.color;c.fillText(m.label,Math.min(xx+2,W-60),T+9+(mi%4)*10)});
+  if(o.baseline!=null){c.strokeStyle='#9aa6b8';c.setLineDash([5,4]);c.beginPath();c.moveTo(L,y(o.baseline));c.lineTo(W-R,y(o.baseline));c.stroke();c.setLineDash([])}
+  if(o.threshold!=null&&o.threshold<hi){c.strokeStyle='#1a9d55';c.setLineDash([2,3]);c.beginPath();c.moveTo(L,y(o.threshold));c.lineTo(W-R,y(o.threshold));c.stroke();c.setLineDash([])}
+  c.strokeStyle=COLORS[key]||'#2f6fe4';c.lineWidth=1.6;c.beginPath();
+  pts.forEach((p,i)=>{i?c.lineTo(x(p.t),y(p[key])):c.moveTo(x(p.t),y(p[key]))});c.stroke();
+}
+function mkCharts(el,list,prefix){
+  if(el.children.length===list.length)return;el.innerHTML='';
+  list.forEach(([k,label])=>{const d=document.createElement('div');d.className='chart';
+    d.innerHTML=`<div class="t"><span>${esc(label)}</span><b id="${prefix}v_${k}"></b></div><canvas id="${prefix}c_${k}"></canvas>`;el.appendChild(d)});
+}
+function markers(S,inc){
+  const m=[];if(S.fault_started_t!=null)m.push({t:S.fault_started_t,label:'fault',color:'#d98a00'});
+  if(S.fault_cleared_t!=null)m.push({t:S.fault_cleared_t,label:'cleared',color:'#6b7685'});
+  if(inc){m.push({t:inc.opened_t,label:'incident',color:'#d6364b'});if(inc.exec_t!=null)m.push({t:inc.exec_t,label:'action',color:'#1a9d55'});
+    if(inc.closed_t!=null)m.push({t:inc.closed_t,label:inc.state==='recovered'?'verified':'closed',color:'#2f6fe4'})}
+  return m;
+}
+function stateBanner(inc){
+  const v=inc.verification,s=inc.state;
+  if(s==='recovered')return['b-recovered','RECOVERY VERIFIED on post-action measurements'];
+  if(s==='partially_recovered')return['b-partial','PARTIALLY RECOVERED — still outside normal band'];
+  if(s==='recovery_failed')return['b-failed','RECOVERY FAILED — escalate to a human'];
+  if(s==='insufficient_evidence')return['b-neutral','INSUFFICIENT EVIDENCE — recovery not confirmed'];
+  if(s==='self_resolved')return['b-neutral','Metrics normalised without any action (not credited to PulseOps)'];
+  if(s==='verifying')return['b-verifying','VERIFYING… '+(v?Math.round(v.elapsed_s)+'/'+Math.round(v.timeout_s)+' s':'collecting post-action samples')];
+  if(s==='dry_run_only')return['b-neutral','DRY-RUN: nothing was changed — recovery cannot be verified'];
+  if(s==='awaiting_approval')return['b-failed','CRITICAL — operator approval needed'];
+  if(s==='rejected')return['b-neutral','Action rejected — no remediation applied'];
+  if(s==='no_safe_action')return['b-failed','No safe automated action available — escalate'];
+  return['b-neutral',s];
+}
+function renderIncident(S){
+  const inc=S.incident,el=$('inc');
+  if(!inc){el.innerHTML='<h2>Incident</h2><div class="mute">No incident. Inject a fault to start the demo.</div>';return}
+  const [bc,bt]=stateBanner(inc),d=inc.diagnosis||{};let h=`<h2>Incident ${esc(inc.id)}</h2><div class="banner ${bc}">${esc(bt)}</div>`;
+  h+=`<div class="small mute">opened t=${fmt(inc.opened_t,4)}s · detected ${inc.time_to_detect_s!=null?inc.time_to_detect_s+' s after (simulated) fault injection':''}</div>`;
+  h+=`<p><b>${esc(d.summary||'')}</b></p>`;
+  if(d.facts){h+='<div class="small"><b>Observed facts</b> <span class="mute">(at detection time)</span><ul>'+d.facts.map(f=>'<li>'+esc(f)+'</li>').join('')+'</ul></div>'}
+  if(d.hypotheses){h+='<div class="small"><b>Hypotheses</b> <span class="mute">(interpretation, not proven)</span><ul>'+d.hypotheses.map(x=>`<li><b>${esc(x.label)}</b> — ${esc(x.confidence)}<br><span class="mute">supported by: ${esc(x.supporting.join('; '))}</span><br><span class="mute">not established: ${esc(x.not_established.join('; '))}</span></li>`).join('')+'</ul></div>'}
+  const pend=inc.pending_action&&inc.actions.find(a=>a.id===inc.pending_action);
+  if(pend){h+=`<div class="reco"><b>Recommended:</b> <code>${esc(pend.action)}</code> <code>${esc(JSON.stringify(pend.params))}</code><div class="small">${esc(pend.rationale)}</div>
+    <div class="small mute">${esc((d.recommendation||{}).expected_effect||'')}${S.mode.dry_run?' · DRY-RUN mode: will not change anything':''}</div>
+    <div class="btns" style="margin-top:6px"><button class="p" onclick="post('/api/approve',{action_id:'${esc(pend.id)}',who:'judge'})">Approve &amp; execute</button>
+    <button onclick="post('/api/reject',{action_id:'${esc(pend.id)}',who:'judge'})">Reject</button></div></div>`}
+  if(inc.notes&&inc.notes.length)h+='<ul class="small">'+inc.notes.map(n=>'<li>'+esc(n)+'</li>').join('')+'</ul>';
+  h+='<div class="small"><b>Timeline</b></div><div class="tl">'+inc.timeline.map(e=>`<div><span class="mute">t=${fmt(e.t,4)}s</span> <b>${esc(e.event)}</b> ${esc(e.detail)}</div>`).join('')+'</div>';
+  el.innerHTML=h;const tl=el.querySelector('.tl');if(tl)tl.scrollTop=tl.scrollHeight;
+}
+function renderBA(S){
+  const inc=S.incident;mkCharts($('ba'),[['queue_depth','Queue depth'],['latency_ms','Latency (ms)']],'ba');
+  if(!inc||!inc.series){$('batable').innerHTML='<div class="mute small">Appears after an incident.</div>';return}
+  ['queue_depth','latency_ms'].forEach(k=>{const b=(S.baselines||{})[k]||(inc.baselines||{})[k];
+    const r=inc.verification&&inc.verification.metrics[k];
+    draw($('bac_'+k),inc.series,k,{baseline:b&&b.baseline,threshold:r&&r.threshold,markers:markers(S,inc)});
+    const last=inc.series[inc.series.length-1];$('bav_'+k).textContent=last?fmt(last[k]):''});
+  const v=inc.verification;
+  if(!v||!inc.before){$('batable').innerHTML='<div class="mute small">Before/after table is produced once an action has been executed and verified (green dotted line = recovery threshold).</div>';return}
+  let h='<table><tr><th>Metric</th><th>Baseline</th><th>Before (peak)</th><th>After (mean of last '+v.window+')</th><th>Recovery threshold</th><th>Improvement</th><th>Pass</th></tr>';
+  for(const [m,r] of Object.entries(v.metrics))h+=`<tr><td>${esc(m)}</td><td>${fmt(r.baseline)}</td><td>${fmt(r.before_peak)}</td><td>${fmt(r.after_mean)}</td><td>≤ ${fmt(r.threshold)}</td><td>${r.improvement==null?'n/a':Math.round(r.improvement*100)+'%'}</td><td>${r.passed==null?'?':r.passed?'✓':'✗'}</td></tr>`;
+  $('batable').innerHTML=h+`</table><div class="small mute">Verdict: <b>${esc(v.verdict)}</b> — ${esc(v.reason)}. Simulated measurements.</div>`;
+}
+function render(S){
+  const hb=$('health');hb.textContent=S.health.toUpperCase();hb.className='badge '+S.health;
+  $('clock').textContent='sim t='+Math.round(S.now)+'s'+(S.paused?' (paused)':'');
+  $('dry').checked=S.mode.dry_run;$('auto').checked=S.mode.auto_approve;$('pause').textContent=S.paused?'Resume':'Pause';
+  $('svc').textContent=`workers ${S.workers}/${S.limits.max_workers} · intake ${(S.intake_factor*100).toFixed(0)}% · fault: ${S.fault?S.fault.kind+' ×'+S.fault.magnitude:'none'}`;
+  mkCharts($('charts'),METRICS,'m');const mk=markers(S,S.incident);
+  METRICS.forEach(([k])=>{const b=(S.baselines||{})[k];draw($('mc_'+k),S.series,k,{baseline:b&&b.baseline,markers:mk});
+    const last=S.series[S.series.length-1];$('mv_'+k).textContent=last?fmt(last[k]):''});
+  renderIncident(S);renderBA(S);
+  $('alerts').innerHTML='<tr><th>t</th><th>sev</th><th>metric</th><th>observed / baseline</th><th>why</th><th>handling</th></tr>'+S.alerts.map(a=>`<tr><td>${Math.round(a.t)}</td><td><span class="pill s-${esc(a.severity)}">${esc(a.severity)}</span></td><td>${esc(a.metric)}</td><td>${fmt(a.observed)} / ${fmt(a.baseline)}</td><td class="small">${esc(a.reason)}</td><td class="small">${esc(a.action)}</td></tr>`).join('');
+  $('actions').innerHTML='<tr><th>id</th><th>action</th><th>status</th><th>by</th><th>result</th></tr>'+S.actions.map(a=>`<tr><td>${esc(a.id)}<div class="mute small">${esc(a.incident_id)}</div></td><td>${esc(a.action)}<div class="mute small">${esc(JSON.stringify(a.params))}</div></td><td>${esc(a.status)}${a.dry_run?' (dry)':''}</td><td>${esc(a.approved_by||(a.requires_approval?'—':'auto'))}</td><td class="small">${esc(a.result||a.blocked_reason||'')}<div class="mute">req t=${Math.round(a.requested_t)}${a.executed_t!=null?' · exec t='+Math.round(a.executed_t):''}</div></td></tr>`).join('');
+}
+async function refresh(){try{const r=await fetch('/api/state');S=await r.json();render(S)}catch(e){$('clock').textContent='disconnected'}}
+refresh();setInterval(refresh,700);
+</script>
+</body>
+</html>
