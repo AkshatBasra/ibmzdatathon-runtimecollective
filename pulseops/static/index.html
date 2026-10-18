@@ -3,297 +3,1101 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PulseOps</title>
+<title>PulseOps — Autonomous SRE AI Engine</title>
 <style>
-:root{--bg:#f4f6f9;--card:#fff;--ink:#1c2430;--mute:#6b7685;--line:#e2e6ec;--ok:#1a9d55;--warn:#d98a00;--crit:#d6364b;--info:#2f6fe4;--grey:#7a8494}
-*{box-sizing:border-box}
-body{margin:0;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
-header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:10px 18px;background:#101826;color:#fff}
-header h1{font-size:18px;margin:0;letter-spacing:.3px}
-header .sub{color:#9fb0c8;font-size:12px}
-.badge{padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;letter-spacing:.5px;color:#fff}
-.healthy{background:var(--ok)}.degraded{background:var(--warn)}.critical{background:var(--crit)}
-.sim{background:#3b4a63;color:#cfe0ff;padding:2px 8px;border-radius:4px;font-size:11px}
-main{display:grid;grid-template-columns:minmax(0,2fr) minmax(320px,1fr);gap:12px;padding:12px 18px;max-width:1500px;margin:auto}
-@media(max-width:1000px){main{grid-template-columns:1fr}}
-.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px}
-.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--mute);margin:0 0 8px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media(max-width:700px){.grid2{grid-template-columns:1fr}}
-.chart{position:relative}
-.chart .t{font-size:12px;color:var(--mute);display:flex;justify-content:space-between}
-.chart .t b{color:var(--ink)}
-canvas{width:100%;height:120px;display:block}
-.btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 12px;font:inherit;cursor:pointer}
-button:hover{background:#f0f3f8}
-button.p{background:var(--info);color:#fff;border-color:var(--info)}button.d{background:var(--crit);color:#fff;border-color:var(--crit)}
-button.ok{background:var(--ok);color:#fff;border-color:var(--ok)}
-button:disabled{opacity:.45;cursor:not-allowed}
-label.sw{display:flex;gap:6px;align-items:center;color:#dfe8f5;font-size:12px}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th,td{text-align:left;padding:4px 6px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--mute);font-weight:600}
-.pill{padding:1px 8px;border-radius:10px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap}
-.s-warning{background:var(--warn)}.s-critical{background:var(--crit)}.s-info{background:var(--info)}
-.banner{padding:10px 12px;border-radius:6px;font-weight:700;color:#fff;margin:8px 0}
-.b-recovered{background:var(--ok)}.b-partial{background:var(--warn)}.b-failed{background:var(--crit)}
-.b-verifying{background:var(--info)}.b-neutral{background:var(--grey)}
-ul{margin:4px 0 4px 18px;padding:0}li{margin:2px 0}
-.mute{color:var(--mute)}.small{font-size:12px}
-.reco{border:1px dashed var(--info);background:#f3f7ff;border-radius:6px;padding:8px;margin:8px 0}
-.tl{max-height:180px;overflow:auto;font-size:12px}
-.tl div{padding:2px 0;border-bottom:1px solid var(--line)}
-.scroll{max-height:220px;overflow:auto}
-code{background:#eef1f6;padding:0 4px;border-radius:3px}
-.err{color:var(--crit);font-size:12px;min-height:16px}
-.control-grid{display:grid;grid-template-columns:repeat(5,minmax(100px,1fr));gap:8px;align-items:end}
-.control-grid label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mute)}
-.control-grid input{width:100%;padding:5px;border:1px solid var(--line);border-radius:4px;font:inherit}
-@media(max-width:700px){.control-grid{grid-template-columns:1fr 1fr}}
+:root {
+  --bg: #070b12;
+  --bg-card: rgba(15, 23, 42, 0.78);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(99, 102, 241, 0.4);
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --accent: #6366f1;
+  --accent-glow: rgba(99, 102, 241, 0.25);
+  --emerald: #10b981;
+  --emerald-glow: rgba(16, 185, 129, 0.25);
+  --amber: #f59e0b;
+  --amber-glow: rgba(245, 158, 11, 0.25);
+  --rose: #f43f5e;
+  --rose-glow: rgba(244, 63, 94, 0.3);
+  --cyan: #06b6d4;
+  --radius-lg: 14px;
+  --radius-md: 10px;
+  --radius-sm: 6px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  background-color: var(--bg);
+  background-image: 
+    radial-gradient(circle at 20% 0%, rgba(99, 102, 241, 0.12), transparent 40%),
+    radial-gradient(circle at 80% 10%, rgba(6, 182, 212, 0.08), transparent 35%);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==========================================================================
+   Header & Command Bar
+   ========================================================================== */
+header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 24px;
+  background: rgba(10, 15, 28, 0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6366f1, #06b6d4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  color: #fff;
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+header h1 {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin: 0;
+  background: linear-gradient(to right, #ffffff, #cbd5e1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.sub-tagline {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.beacon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.beacon-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  animation: pulse-beacon 1.8s infinite;
+}
+
+@keyframes pulse-beacon {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; filter: drop-shadow(0 0 4px currentColor); }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.healthy { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+.healthy .beacon-dot { background: #34d399; }
+
+.degraded { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+.degraded .beacon-dot { background: #fbbf24; }
+
+.critical { background: rgba(244, 63, 94, 0.18); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.4); animation: crit-glow 1.5s infinite alternate; }
+.critical .beacon-dot { background: #fb7185; }
+
+@keyframes crit-glow {
+  0% { box-shadow: 0 0 4px rgba(244, 63, 94, 0.2); }
+  100% { box-shadow: 0 0 16px rgba(244, 63, 94, 0.5); }
+}
+
+.chip {
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.switch-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.switch-label input { accent-color: var(--accent); }
+
+/* ==========================================================================
+   Layout & Cards
+   ========================================================================== */
+main {
+  display: grid;
+  grid-template-columns: minmax(0, 2.1fr) minmax(360px, 1fr);
+  gap: 16px;
+  padding: 16px 24px;
+  max-width: 1640px;
+  margin: auto;
+}
+
+@media (max-width: 1100px) {
+  main { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: var(--bg-card);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.45);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.card-title h2 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title h2 .icon {
+  font-size: 14px;
+}
+
+/* ==========================================================================
+   Buttons & Interactive Elements
+   ========================================================================== */
+.btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+button {
+  background: rgba(30, 41, 59, 0.8);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease-in-out;
+}
+
+button:hover {
+  background: rgba(51, 65, 85, 0.9);
+  border-color: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+button.p {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #fff;
+  box-shadow: 0 2px 10px var(--accent-glow);
+}
+button.p:hover {
+  background: linear-gradient(135deg, #4338ca, #4f46e5);
+}
+
+button.ok {
+  background: linear-gradient(135deg, #059669, #10b981);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #fff;
+  box-shadow: 0 2px 10px var(--emerald-glow);
+}
+button.ok:hover {
+  background: linear-gradient(135deg, #047857, #059669);
+}
+
+button.d {
+  background: linear-gradient(135deg, #be123c, #e11d48);
+  border-color: rgba(244, 63, 94, 0.4);
+  color: #fff;
+  box-shadow: 0 2px 10px var(--rose-glow);
+}
+button.d:hover {
+  background: linear-gradient(135deg, #9f1239, #be123c);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+input[type="number"] {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input[type="number"]:focus {
+  border-color: var(--accent);
+}
+
+/* ==========================================================================
+   AI Host Monitor Banner
+   ========================================================================== */
+.ai-panel {
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(17, 24, 39, 0.85));
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  box-shadow: 0 0 28px -6px rgba(99, 102, 241, 0.15);
+  margin-bottom: 16px;
+}
+
+.ai-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.stat-chip {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-chip .label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  letter-spacing: 0.4px;
+}
+
+.stat-chip .val {
+  font-size: 16px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  margin-top: 4px;
+  color: var(--text);
+}
+
+.ai-reasoning-card {
+  background: rgba(23, 23, 42, 0.75);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin-top: 10px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ai-reasoning-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #a5b4fc;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ==========================================================================
+   Charts Grid
+   ========================================================================== */
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+
+.chart-card {
+  background: rgba(11, 17, 32, 0.65);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  position: relative;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.chart-header b {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--text);
+}
+
+canvas {
+  width: 100%;
+  height: 125px;
+  display: block;
+  border-radius: 4px;
+}
+
+/* ==========================================================================
+   Incident & Diagnostic Drawer
+   ========================================================================== */
+.banner {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.b-recovered { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+.b-partial { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+.b-failed { background: rgba(244, 63, 94, 0.18); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.4); }
+.b-verifying { background: rgba(99, 102, 241, 0.18); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.35); }
+.b-neutral { background: rgba(30, 41, 59, 0.6); color: var(--text-muted); border: 1px solid var(--border); }
+
+.reco-box {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin: 10px 0;
+}
+
+.reco-action-tag {
+  background: rgba(99, 102, 241, 0.2);
+  color: #c7d2fe;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.timeline {
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 11px;
+  padding-right: 4px;
+}
+
+.timeline-item {
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  gap: 8px;
+}
+
+.timeline-item .t-stamp {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-dim);
+  min-width: 50px;
+}
+
+/* ==========================================================================
+   Tables & Audit
+   ========================================================================== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+th, td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  vertical-align: middle;
+}
+
+th {
+  color: var(--text-dim);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+
+tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.pill {
+  padding: 2px 7px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+}
+
+.s-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+.s-critical { background: rgba(244, 63, 94, 0.2); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.4); }
+.s-info { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); }
+
+.scroll-pane {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.24); }
+
+.mute { color: var(--text-dim); }
+.small { font-size: 11px; }
+.err-msg { color: var(--rose); font-size: 11px; min-height: 16px; margin-top: 4px; }
+
+.control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+}
+.control-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
 </style>
 </head>
 <body>
+
 <header>
-  <h1>PulseOps</h1><span class="sub">detect &middot; respond &middot; prove recovery</span>
-  <span id="health" class="badge healthy">HEALTHY</span>
-  <span class="sim" id="host_badge" style="background:#1d3557;color:#a8dadc">Host: detecting...</span>
-  <span class="sim" id="service_badge" style="background:#14532d;color:#bbf7d0">Mode: simulation</span>
-  <span class="sim" id="slm_badge" style="background:#3a0ca3;color:#f72585">SLM: embedded</span>
-  <span class="sub" id="clock"></span>
+  <div class="brand">
+    <div class="brand-logo">⚡</div>
+    <div>
+      <h1>PulseOps</h1>
+      <div class="sub-tagline">Autonomous SRE Copilot &middot; IBM Z &amp; Cloud</div>
+    </div>
+  </div>
+
+  <span id="health" class="beacon healthy">
+    <span class="beacon-dot"></span>
+    <span id="health_text">SYSTEM HEALTHY</span>
+  </span>
+
+  <span class="chip" id="host_badge">Host: Detecting...</span>
+  <span class="chip" id="service_badge" style="color:#6ee7b7">Mode: simulation</span>
+  <span class="chip" id="slm_badge" style="color:#c084fc">SLM: IBM Granite</span>
+  <span class="chip" id="clock" style="color:#38bdf8">0s</span>
+
   <span style="flex:1"></span>
-  <label class="sw"><input type="checkbox" id="dry"> dry-run</label>
-  <label class="sw"><input type="checkbox" id="auto"> auto-approve</label>
-  <button id="pause">Pause</button>
-  <button id="reset">Reset demo</button>
+
+  <label class="switch-label"><input type="checkbox" id="dry"> Dry-Run</label>
+  <label class="switch-label"><input type="checkbox" id="auto"> Auto-Approve</label>
+  <button id="pause">⏸ Pause</button>
+  <button id="reset">↺ Reset</button>
 </header>
+
 <main>
+  <!-- Main Telemetry & Control Column -->
   <section>
-    <div class="card" style="margin-bottom:12px">
-      <h2>Service controls</h2>
-      <div class="btns">
-        <button class="ok" onclick="post('/api/fault/clear')">Normal traffic</button>
-        <span class="mute small">Inject:</span>
-        <button class="d" onclick="inject('load_spike')">Load spike</button>
-        <button class="d" onclick="inject('slow_downstream')">Slow downstream</button>
-        <label class="small">magnitude &times;<input id="mag" type="number" min="1" max="5" step="0.1" value="2" style="width:60px"></label>
+    
+    <!-- Service Workload Controls -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">
+        <h2><span class="icon">🕹️</span> Workload Traffic &amp; Fault Simulator</h2>
         <span class="small mute" id="svc"></span>
       </div>
-      <div class="err" id="err"></div>
-    </div>
-    <div class="card" id="live_controls" style="margin-bottom:12px;display:none">
-      <h2>Service X live controls</h2>
-      <div class="small mute" style="margin-bottom:8px">These controls affect the independent Service X process, not the PulseOps dashboard.</div>
-      <div class="control-grid">
-        <label>Traffic ×<input id="sx_traffic" type="number" min="0.1" max="5" step="0.1" value="1"></label>
-        <label>Delay ×<input id="sx_delay" type="number" min="0.1" max="5" step="0.1" value="1"></label>
-        <label>Error rate<input id="sx_errors" type="number" min="0" max="1" step="0.05" value="0"></label>
-        <label>Intake factor<input id="sx_intake" type="number" min="0.5" max="1" step="0.05" value="1"></label>
-        <label>Workers<input id="sx_workers" type="number" min="1" max="16" step="1" value="2"></label>
+      <div class="btns">
+        <button class="ok" onclick="post('/api/fault/clear')">✓ Normal Workload</button>
+        <span class="mute small" style="margin:0 4px">Inject Failure:</span>
+        <button class="d" onclick="inject('load_spike')">⚡ Load Spike</button>
+        <button class="d" onclick="inject('slow_downstream')">⏱ Slow Downstream (Db2 / API)</button>
+        <label class="small mute" style="display:inline-flex;align-items:center;gap:4px">
+          Magnitude &times;
+          <input id="mag" type="number" min="1" max="5" step="0.1" value="2" style="width:54px">
+        </label>
       </div>
-      <div class="btns" style="margin-top:8px">
-        <button class="p" onclick="applyServiceXControls()">Apply to Service X</button>
-        <button class="ok" onclick="clearServiceXControls()">Restore normal</button>
+      <div class="err-msg" id="err"></div>
+    </div>
+
+    <!-- Live Service X Independent Controls (Visible in live mode) -->
+    <div class="card" id="live_controls" style="margin-bottom:14px;display:none;background:rgba(18,25,38,0.9)">
+      <div class="card-title">
+        <h2><span class="icon">🌐</span> Live Target Service X Remote Controls</h2>
         <span class="small mute" id="sx_status"></span>
       </div>
-    </div>
-    <div class="card" id="ai_card" style="margin-bottom:12px;background:#0d1522;color:#fff;border:1px solid #1f2e46">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <h2 style="color:#60a5fa;margin:0;display:flex;align-items:center;gap:6px">
-          <span>🧠</span> IBM Z Trained AI Anomaly Model &amp; SLM Reasoner
-        </h2>
-        <span id="ai_status_badge" class="badge healthy">AI: NORMAL</span>
+      <div class="control-grid">
+        <label>Traffic &times;<input id="sx_traffic" type="number" min="0.1" max="5" step="0.1" value="1"></label>
+        <label>Delay &times;<input id="sx_delay" type="number" min="0.1" max="5" step="0.1" value="1"></label>
+        <label>Error Rate<input id="sx_errors" type="number" min="0" max="1" step="0.05" value="0"></label>
+        <label>Intake Factor<input id="sx_intake" type="number" min="0.5" max="1" step="0.05" value="1"></label>
+        <label>Worker Threads<input id="sx_workers" type="number" min="1" max="16" step="1" value="2"></label>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:8px">
-        <div style="background:#162032;padding:8px;border-radius:6px">
-          <div class="small mute" style="color:#94a3b8">Hardware Environment</div>
-          <div id="ai_platform" style="font-weight:700;color:#e2e8f0;font-size:13px">IBM Z LinuxONE (s390x)</div>
-        </div>
-        <div style="background:#162032;padding:8px;border-radius:6px">
-          <div class="small mute" style="color:#94a3b8">Host CPU (Live /proc/stat)</div>
-          <div id="ai_cpu" style="font-weight:700;color:#38bdf8;font-size:15px">--%</div>
-        </div>
-        <div style="background:#162032;padding:8px;border-radius:6px">
-          <div class="small mute" style="color:#94a3b8">AI Anomaly Decision Score</div>
-          <div id="ai_score" style="font-weight:700;color:#4ade80;font-size:15px">--</div>
-        </div>
-        <div style="background:#162032;padding:8px;border-radius:6px;display:flex;align-items:center;justify-content:center">
-          <button class="d" style="width:100%;font-size:12px;padding:8px" onclick="post('/api/host/spike',{duration:8})">⚡ Simulate Mainframe CPU Surge</button>
-        </div>
-      </div>
-      <div id="ai_slm_box" style="display:none;background:#1e1b4b;border-left:4px solid #818cf8;padding:10px;border-radius:4px;font-size:12px">
-        <div style="font-weight:700;color:#c7d2fe;margin-bottom:4px">🤖 SLM Copilot Diagnosis (IBM Granite / Natural Language):</div>
-        <div id="ai_slm_text" style="color:#e0e7ff;line-height:1.4"></div>
+      <div class="btns" style="margin-top:10px">
+        <button class="p" onclick="applyServiceXControls()">Apply to Target Service</button>
+        <button class="ok" onclick="clearServiceXControls()">Restore Default Baseline</button>
       </div>
     </div>
+
+    <!-- AI Anomaly Detection & SLM Reasoner Panel -->
+    <div class="card ai-panel" id="ai_card">
+      <div class="card-title">
+        <h2 style="color:#a5b4fc"><span class="icon">🧠</span> Hardware Telemetry &amp; Trained AI Isolation Forest Model</h2>
+        <span id="ai_status_badge" class="beacon healthy">
+          <span class="beacon-dot"></span>
+          AI: NORMAL
+        </span>
+      </div>
+      
+      <div class="ai-stat-grid">
+        <div class="stat-chip">
+          <div class="label">Host Hardware Architecture</div>
+          <div class="val" id="ai_platform" style="font-size:13px;color:#e2e8f0">IBM Z LinuxONE (s390x)</div>
+        </div>
+        <div class="stat-chip">
+          <div class="label">Host CPU (/proc/stat Live)</div>
+          <div class="val" id="ai_cpu" style="color:#38bdf8">--%</div>
+        </div>
+        <div class="stat-chip">
+          <div class="label">AI Anomaly Decision Score</div>
+          <div class="val" id="ai_score" style="color:#34d399">--</div>
+        </div>
+        <div class="stat-chip" style="display:flex;align-items:center;justify-content:center;background:rgba(99,102,241,0.1);border-color:rgba(99,102,241,0.25)">
+          <button class="d" style="width:100%;font-size:11px;padding:8px" onclick="post('/api/host/spike',{duration:8})">
+            ⚡ Simulate Hardware Spike
+          </button>
+        </div>
+      </div>
+
+      <div id="ai_slm_box" class="ai-reasoning-card" style="display:none">
+        <div class="ai-reasoning-header">
+          <span>🤖</span> SLM Copilot Reasoning (IBM Granite / Natural Language SRE Diagnostic)
+        </div>
+        <div id="ai_slm_text" style="color:#e0e7ff;font-size:12px;line-height:1.5"></div>
+      </div>
+    </div>
+
+    <!-- Live Telemetry Charts -->
     <div class="card">
-      <h2>Live telemetry <span class="mute" style="text-transform:none">(dashed = learned baseline; markers: fault / incident / action)</span></h2>
+      <div class="card-title">
+        <h2><span class="icon">📈</span> Real-Time Operational Telemetry <span class="mute small" style="text-transform:none;font-weight:400">(Dashed: AI Dynamic Baseline)</span></h2>
+      </div>
       <div class="grid2" id="charts"></div>
     </div>
-    <div class="card" style="margin-top:12px">
-      <h2>Before / after remediation <span class="mute" style="text-transform:none">(same incident, measured samples)</span></h2>
+
+    <!-- Verification Section -->
+    <div class="card" style="margin-top:14px">
+      <div class="card-title">
+        <h2><span class="icon">⚖️</span> Closed-Loop Recovery Verification <span class="mute small" style="text-transform:none;font-weight:400">(Pre vs Post Remediation)</span></h2>
+      </div>
       <div class="grid2" id="ba"></div>
-      <div id="batable"></div>
+      <div id="batable" style="margin-top:10px"></div>
     </div>
+
   </section>
+
+  <!-- Incident & Audit Drawer Column -->
   <aside>
-    <div class="card" id="inc"><h2>Incident</h2><div class="mute">No incident. Inject a fault to start the demo.</div></div>
-    <div class="card" style="margin-top:12px"><h2>Anomaly alerts</h2><div class="scroll"><table id="alerts"></table></div></div>
-    <div class="card" style="margin-top:12px"><h2>Action history (audit)</h2><div class="scroll"><table id="actions"></table></div></div>
+    <!-- Live Incident Card -->
+    <div class="card" id="inc">
+      <div class="card-title"><h2><span class="icon">🛡️</span> Active Incident</h2></div>
+      <div class="mute small">No active incidents. Inject a workload fault to trigger autonomous response.</div>
+    </div>
+
+    <!-- Anomaly Alerts Table -->
+    <div class="card" style="margin-top:14px">
+      <div class="card-title"><h2><span class="icon">🔔</span> Anomaly Detection Feed</h2></div>
+      <div class="scroll-pane"><table id="alerts"></table></div>
+    </div>
+
+    <!-- Action History (Immutable Audit Log) -->
+    <div class="card" style="margin-top:14px">
+      <div class="card-title"><h2><span class="icon">📋</span> Immutable Remediation Audit Log</h2></div>
+      <div class="scroll-pane"><table id="actions"></table></div>
+    </div>
   </aside>
 </main>
+
 <script>
-const $=id=>document.getElementById(id);
-const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const fmt=(x,d=3)=>x==null||isNaN(x)?'n/a':(Math.abs(x)>=100?x.toFixed(0):Number(x).toPrecision(d));
-const METRICS=[['queue_depth','Queue depth (requests)'],['latency_ms','Latency (ms)'],['error_rate','Error rate'],['cpu_pct','CPU % (simulated)'],['arrival_rate','Arrival rate (req/s)'],['throughput','Throughput (req/s)']];
-const COLORS={queue_depth:'#2f6fe4',latency_ms:'#d6364b',error_rate:'#d98a00',cpu_pct:'#7b4fd1',arrival_rate:'#1a9d55',throughput:'#118a8a'};
-let S=null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = (x, d = 3) => x == null || isNaN(x) ? 'n/a' : (Math.abs(x) >= 100 ? x.toFixed(0) : Number(x).toPrecision(d));
 
-async function post(p,b){
-  try{const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});
-    const j=await r.json();$('err').textContent=r.ok?'':(j.error||'error');refresh();}catch(e){$('err').textContent=String(e)}
+const METRICS = [
+  ['queue_depth', 'Queue Depth (Pending Backlog)'],
+  ['latency_ms', 'Response Latency (ms)'],
+  ['error_rate', 'Error Rate (%)'],
+  ['cpu_pct', 'Workload CPU %'],
+  ['arrival_rate', 'Incoming Arrival Rate (req/s)'],
+  ['throughput', 'Processed Throughput (req/s)']
+];
+
+const COLORS = {
+  queue_depth: '#38bdf8',
+  latency_ms: '#f43f5e',
+  error_rate: '#fbbf24',
+  cpu_pct: '#a855f7',
+  arrival_rate: '#34d399',
+  throughput: '#22d3ee'
+};
+
+let S = null;
+
+async function post(p, b) {
+  try {
+    const r = await fetch(p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
+    const j = await r.json();
+    $('err').textContent = r.ok ? '' : (j.error || 'error');
+    refresh();
+  } catch (e) {
+    $('err').textContent = String(e);
+  }
 }
-function inject(kind){post('/api/fault',{kind,magnitude:parseFloat($('mag').value)})}
-async function applyServiceXControls(){
-  await post('/api/service-x/control',{
-    traffic_multiplier:parseFloat($('sx_traffic').value),
-    service_delay_multiplier:parseFloat($('sx_delay').value),
-    error_rate:parseFloat($('sx_errors').value),
-    intake_factor:parseFloat($('sx_intake').value),
-    workers:parseInt($('sx_workers').value,10)
+
+function inject(kind) {
+  post('/api/fault', { kind, magnitude: parseFloat($('mag').value) });
+}
+
+async function applyServiceXControls() {
+  await post('/api/service-x/control', {
+    traffic_multiplier: parseFloat($('sx_traffic').value),
+    service_delay_multiplier: parseFloat($('sx_delay').value),
+    error_rate: parseFloat($('sx_errors').value),
+    intake_factor: parseFloat($('sx_intake').value),
+    workers: parseInt($('sx_workers').value, 10)
   });
-  $('sx_status').textContent='Control sent to Service X';
+  $('sx_status').textContent = 'Controls applied to Target Service';
 }
-async function clearServiceXControls(){
-  $('sx_traffic').value=1;$('sx_delay').value=1;$('sx_errors').value=0;$('sx_intake').value=1;
-  await post('/api/service-x/control',{traffic_multiplier:1,service_delay_multiplier:1,error_rate:0,intake_factor:1});
-  $('sx_status').textContent='Normal controls restored';
-}
-$('dry').onchange=e=>post('/api/mode',{dry_run:e.target.checked});
-$('auto').onchange=e=>post('/api/mode',{auto_approve:e.target.checked});
-$('pause').onclick=()=>post('/api/pause',{paused:!(S&&S.paused)});
-$('reset').onclick=()=>post('/api/reset');
 
-function draw(cv,series,key,o){
-  o=o||{};const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
-  if(cv.width!==W*dpr||cv.height!==H*dpr){cv.width=W*dpr;cv.height=H*dpr}
-  const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);
-  const pts=series.filter(p=>p[key]!=null&&isFinite(p[key]));if(pts.length<2)return;
-  const t0=pts[0].t,t1=pts[pts.length-1].t||t0+1;
-  let lo=0,hi=Math.max(...pts.map(p=>p[key]));
-  if(o.baseline!=null)hi=Math.max(hi,o.baseline*1.2);if(hi<=lo)hi=lo+1;hi*=1.08;
-  const L=34,R=6,T=6,B=16,x=t=>L+(t-t0)/(t1-t0||1)*(W-L-R),y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
-  c.strokeStyle='#e2e6ec';c.fillStyle='#6b7685';c.font='10px system-ui';c.lineWidth=1;
-  for(let i=0;i<=3;i++){const v=lo+(hi-lo)*i/3,yy=y(v);c.beginPath();c.moveTo(L,yy);c.lineTo(W-R,yy);c.stroke();c.fillText(fmt(v,2),2,yy+3)}
-  c.fillText(Math.round(t0)+'s',L,H-3);c.fillText(Math.round(t1)+'s',W-R-28,H-3);
-  (o.markers||[]).forEach((m,mi)=>{if(m.t==null||m.t<t0||m.t>t1)return;const xx=x(m.t);c.strokeStyle=m.color;c.setLineDash([3,3]);c.beginPath();c.moveTo(xx,T);c.lineTo(xx,H-B);c.stroke();c.setLineDash([]);c.fillStyle=m.color;c.fillText(m.label,Math.min(xx+2,W-60),T+9+(mi%4)*10)});
-  if(o.baseline!=null){c.strokeStyle='#9aa6b8';c.setLineDash([5,4]);c.beginPath();c.moveTo(L,y(o.baseline));c.lineTo(W-R,y(o.baseline));c.stroke();c.setLineDash([])}
-  if(o.threshold!=null&&o.threshold<hi){c.strokeStyle='#1a9d55';c.setLineDash([2,3]);c.beginPath();c.moveTo(L,y(o.threshold));c.lineTo(W-R,y(o.threshold));c.stroke();c.setLineDash([])}
-  c.strokeStyle=COLORS[key]||'#2f6fe4';c.lineWidth=1.6;c.beginPath();
-  pts.forEach((p,i)=>{i?c.lineTo(x(p.t),y(p[key])):c.moveTo(x(p.t),y(p[key]))});c.stroke();
+async function clearServiceXControls() {
+  $('sx_traffic').value = 1;
+  $('sx_delay').value = 1;
+  $('sx_errors').value = 0;
+  $('sx_intake').value = 1;
+  await post('/api/service-x/control', { traffic_multiplier: 1, service_delay_multiplier: 1, error_rate: 0, intake_factor: 1 });
+  $('sx_status').textContent = 'Default baseline restored';
 }
-function mkCharts(el,list,prefix){
-  if(el.children.length===list.length)return;el.innerHTML='';
-  list.forEach(([k,label])=>{const d=document.createElement('div');d.className='chart';
-    d.innerHTML=`<div class="t"><span>${esc(label)}</span><b id="${prefix}v_${k}"></b></div><canvas id="${prefix}c_${k}"></canvas>`;el.appendChild(d)});
+
+$('dry').onchange = e => post('/api/mode', { dry_run: e.target.checked });
+$('auto').onchange = e => post('/api/mode', { auto_approve: e.target.checked });
+$('pause').onclick = () => post('/api/pause', { paused: !(S && S.paused) });
+$('reset').onclick = () => post('/api/reset');
+
+function draw(cv, series, key, o) {
+  o = o || {};
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth;
+  const H = cv.clientHeight;
+  if (cv.width !== W * dpr || cv.height !== H * dpr) {
+    cv.width = W * dpr;
+    cv.height = H * dpr;
+  }
+  const c = cv.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, W, H);
+
+  const pts = series.filter(p => p[key] != null && isFinite(p[key]));
+  if (pts.length < 2) return;
+
+  const t0 = pts[0].t, t1 = pts[pts.length - 1].t || t0 + 1;
+  let lo = 0, hi = Math.max(...pts.map(p => p[key]));
+  if (o.baseline != null) hi = Math.max(hi, o.baseline * 1.25);
+  if (hi <= lo) hi = lo + 1;
+  hi *= 1.1;
+
+  const L = 38, R = 8, T = 8, B = 20;
+  const x = t => L + (t - t0) / (t1 - t0 || 1) * (W - L - R);
+  const y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+
+  // Subtle gridlines
+  c.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+  c.fillStyle = '#64748b';
+  c.font = '9px "JetBrains Mono", monospace';
+  c.lineWidth = 1;
+  for (let i = 0; i <= 3; i++) {
+    const v = lo + (hi - lo) * i / 3;
+    const yy = y(v);
+    c.beginPath();
+    c.moveTo(L, yy);
+    c.lineTo(W - R, yy);
+    c.stroke();
+    c.fillText(fmt(v, 2), 2, yy + 3);
+  }
+  c.fillText(Math.round(t0) + 's', L, H - 4);
+  c.fillText(Math.round(t1) + 's', W - R - 24, H - 4);
+
+  // Baseline dash
+  if (o.baseline != null) {
+    c.strokeStyle = '#64748b';
+    c.setLineDash([4, 4]);
+    c.beginPath();
+    c.moveTo(L, y(o.baseline));
+    c.lineTo(W - R, y(o.baseline));
+    c.stroke();
+    c.setLineDash([]);
+  }
+
+  // Recovery threshold line
+  if (o.threshold != null && o.threshold < hi) {
+    c.strokeStyle = '#10b981';
+    c.setLineDash([2, 3]);
+    c.beginPath();
+    c.moveTo(L, y(o.threshold));
+    c.lineTo(W - R, y(o.threshold));
+    c.stroke();
+    c.setLineDash([]);
+  }
+
+  // Event Markers
+  (o.markers || []).forEach((m, mi) => {
+    if (m.t == null || m.t < t0 || m.t > t1) return;
+    const xx = x(m.t);
+    c.strokeStyle = m.color;
+    c.setLineDash([3, 3]);
+    c.beginPath();
+    c.moveTo(xx, T);
+    c.lineTo(xx, H - B);
+    c.stroke();
+    c.setLineDash([]);
+    c.fillStyle = m.color;
+    c.font = '9px "Inter", sans-serif';
+    c.fillText(m.label, Math.min(xx + 2, W - 50), T + 10 + (mi % 3) * 11);
+  });
+
+  const lineColor = COLORS[key] || '#38bdf8';
+
+  // Area Fill under curve
+  const grad = c.createLinearGradient(0, T, 0, H - B);
+  grad.addColorStop(0, lineColor + '44');
+  grad.addColorStop(1, lineColor + '00');
+
+  c.beginPath();
+  c.moveTo(x(pts[0].t), H - B);
+  pts.forEach(p => c.lineTo(x(p.t), y(p[key])));
+  c.lineTo(x(pts[pts.length - 1].t), H - B);
+  c.closePath();
+  c.fillStyle = grad;
+  c.fill();
+
+  // Glow line
+  c.strokeStyle = lineColor;
+  c.lineWidth = 1.8;
+  c.shadowColor = lineColor;
+  c.shadowBlur = 6;
+  c.beginPath();
+  pts.forEach((p, i) => { i ? c.lineTo(x(p.t), y(p[key])) : c.moveTo(x(p.t), y(p[key])); });
+  c.stroke();
+  c.shadowBlur = 0; // reset
 }
-function markers(S,inc){
-  const m=[];if(S.fault_started_t!=null)m.push({t:S.fault_started_t,label:'fault',color:'#d98a00'});
-  if(S.fault_cleared_t!=null)m.push({t:S.fault_cleared_t,label:'cleared',color:'#6b7685'});
-  if(inc){m.push({t:inc.opened_t,label:'incident',color:'#d6364b'});if(inc.exec_t!=null)m.push({t:inc.exec_t,label:'action',color:'#1a9d55'});
-    if(inc.closed_t!=null)m.push({t:inc.closed_t,label:inc.state==='recovered'?'verified':'closed',color:'#2f6fe4'})}
+
+function mkCharts(el, list, prefix) {
+  if (el.children.length === list.length) return;
+  el.innerHTML = '';
+  list.forEach(([k, label]) => {
+    const d = document.createElement('div');
+    d.className = 'chart-card';
+    d.innerHTML = `<div class="chart-header"><span>${esc(label)}</span><b id="${prefix}v_${k}">--</b></div><canvas id="${prefix}c_${k}"></canvas>`;
+    el.appendChild(d);
+  });
+}
+
+function markers(S, inc) {
+  const m = [];
+  if (S.fault_started_t != null) m.push({ t: S.fault_started_t, label: 'FAULT', color: '#f59e0b' });
+  if (S.fault_cleared_t != null) m.push({ t: S.fault_cleared_t, label: 'CLEARED', color: '#94a3b8' });
+  if (inc) {
+    m.push({ t: inc.opened_t, label: 'INCIDENT', color: '#f43f5e' });
+    if (inc.exec_t != null) m.push({ t: inc.exec_t, label: 'REMEDY', color: '#10b981' });
+    if (inc.closed_t != null) m.push({ t: inc.closed_t, label: inc.state === 'recovered' ? 'VERIFIED' : 'CLOSED', color: '#38bdf8' });
+  }
   return m;
 }
-function stateBanner(inc){
-  const v=inc.verification,s=inc.state;
-  if(s==='recovered')return['b-recovered','RECOVERY VERIFIED on post-action measurements'];
-  if(s==='partially_recovered')return['b-partial','PARTIALLY RECOVERED — still outside normal band'];
-  if(s==='recovery_failed')return['b-failed','RECOVERY FAILED — escalate to a human'];
-  if(s==='insufficient_evidence')return['b-neutral','INSUFFICIENT EVIDENCE — recovery not confirmed'];
-  if(s==='self_resolved')return['b-neutral','Metrics normalised without any action (not credited to PulseOps)'];
-  if(s==='verifying')return['b-verifying','VERIFYING… '+(v?Math.round(v.elapsed_s)+'/'+Math.round(v.timeout_s)+' s':'collecting post-action samples')];
-  if(s==='dry_run_only')return['b-neutral','DRY-RUN: nothing was changed — recovery cannot be verified'];
-  if(s==='awaiting_approval')return['b-failed','CRITICAL — operator approval needed'];
-  if(s==='rejected')return['b-neutral','Action rejected — no remediation applied'];
-  if(s==='no_safe_action')return['b-failed','No safe automated action available — escalate'];
-  return['b-neutral',s];
+
+function stateBanner(inc) {
+  const v = inc.verification, s = inc.state;
+  if (s === 'recovered') return ['b-recovered', '✓ RECOVERY MATHEMATICALLY VERIFIED ON POST-ACTION TELEMETRY'];
+  if (s === 'partially_recovered') return ['b-partial', '⚠ PARTIALLY RECOVERED — STILL OUTSIDE NORMAL BASELINE'];
+  if (s === 'recovery_failed') return ['b-failed', '✗ RECOVERY FAILED — ESCALATING TO SRE SQUAD'];
+  if (s === 'insufficient_evidence') return ['b-neutral', 'ⓘ INSUFFICIENT EVIDENCE — EXTENDING OBSERVATION'];
+  if (s === 'self_resolved') return ['b-neutral', 'ⓘ METRICS SELF-RESOLVED WITHOUT INTERVENTION'];
+  if (s === 'verifying') return ['b-verifying', '⧖ MEASURING POST-ACTION RECOVERY… ' + (v ? Math.round(v.elapsed_s) + '/' + Math.round(v.timeout_s) + 's' : '')];
+  if (s === 'dry_run_only') return ['b-neutral', 'ⓘ DRY-RUN MODE: CHANGES AUDITED BUT NOT APPLIED'];
+  if (s === 'awaiting_approval') return ['b-failed', '🚨 CRITICAL INCIDENT — OPERATOR APPROVAL REQUIRED'];
+  if (s === 'rejected') return ['b-neutral', '✗ PROPOSED ACTION REJECTED BY OPERATOR'];
+  if (s === 'no_safe_action') return ['b-failed', '✗ NO SAFE BOUNDED ACTIONS REMAIN — ESCALATE TO HUMAN'];
+  return ['b-neutral', s];
 }
-function renderIncident(S){
-  const inc=S.incident,el=$('inc');
-  const reportOpen=el.querySelector('details')?.open||false;
-  if(!inc){el.innerHTML='<h2>Incident</h2><div class="mute">No incident. Inject a fault to start the demo.</div>';return}
-  const [bc,bt]=stateBanner(inc),d=inc.diagnosis||{};let h=`<h2>Incident ${esc(inc.id)}</h2><div class="banner ${bc}">${esc(bt)}</div>`;
-  h+=`<div class="small mute">opened t=${fmt(inc.opened_t,4)}s · detected ${inc.time_to_detect_s!=null?inc.time_to_detect_s+' s after '+(S.service_mode==='live'?'live control':'simulated fault injection'):''}</div>`;
-  h+=`<p><b>${esc(d.summary||'')}</b></p>`;
-  if(d.ai_explanation){h+=`<div style="background:#f0f4ff;border-left:4px solid #2f6fe4;padding:8px 10px;border-radius:4px;margin:8px 0;font-size:12px"><div style="font-weight:700;color:#1c3d73;margin-bottom:3px">🤖 AI Copilot Analysis:</div><div>${esc(d.ai_explanation)}</div></div>`}
-  if(d.facts){h+='<div class="small"><b>Observed facts</b> <span class="mute">(at detection time)</span><ul>'+d.facts.map(f=>'<li>'+esc(f)+'</li>').join('')+'</ul></div>'}
-  if(d.hypotheses){h+='<div class="small"><b>Hypotheses</b> <span class="mute">(interpretation, not proven)</span><ul>'+d.hypotheses.map(x=>`<li><b>${esc(x.label)}</b> — ${esc(x.confidence)}<br><span class="mute">supported by: ${esc(x.supporting.join('; '))}</span><br><span class="mute">not established: ${esc(x.not_established.join('; '))}</span></li>`).join('')+'</ul></div>'}
-  const pend=inc.pending_action&&inc.actions.find(a=>a.id===inc.pending_action);
-  if(pend){h+=`<div class="reco"><b>Recommended:</b> <code>${esc(pend.action)}</code> <code>${esc(JSON.stringify(pend.params))}</code><div class="small">${esc(pend.rationale)}</div>`;
-    if(pend.ai_justification){h+=`<div style="background:#eef8f2;border-left:3px solid #1a9d55;padding:6px 8px;border-radius:3px;margin:4px 0;font-size:11px"><b>Operational Justification:</b> ${esc(pend.ai_justification)}</div>`}
-    h+=`<div class="small mute">${esc((d.recommendation||{}).expected_effect||'')}${S.mode.dry_run?' · DRY-RUN mode: will not change anything':''}</div>
-    <div class="btns" style="margin-top:6px"><button class="p" onclick="post('/api/approve',{action_id:'${esc(pend.id)}',who:'judge'})">Approve &amp; execute</button>
-    <button onclick="post('/api/reject',{action_id:'${esc(pend.id)}',who:'judge'})">Reject</button></div></div>`}
-  if(inc.postmortem){h+=`<details style="margin:10px 0"><summary style="cursor:pointer;font-weight:700;color:#2f6fe4;font-size:12px">📄 View Automated SRE Post-Mortem Report</summary><pre style="background:#101826;color:#a8dadc;padding:10px;border-radius:6px;font-size:11px;overflow:auto;max-height:220px;white-space:pre-wrap">${esc(inc.postmortem)}</pre></details>`}
-  if(inc.notes&&inc.notes.length)h+='<ul class="small">'+inc.notes.map(n=>'<li>'+esc(n)+'</li>').join('')+'</ul>';
-  h+='<div class="small"><b>Timeline</b></div><div class="tl">'+inc.timeline.map(e=>`<div><span class="mute">t=${fmt(e.t,4)}s</span> <b>${esc(e.event)}</b> ${esc(e.detail)}</div>`).join('')+'</div>';
-  el.innerHTML=h;
-  const report=el.querySelector('details');if(report)report.open=reportOpen;
-  const tl=el.querySelector('.tl');if(tl)tl.scrollTop=tl.scrollHeight;
-}
-function renderBA(S){
-  const inc=S.incident;mkCharts($('ba'),[['queue_depth','Queue depth'],['latency_ms','Latency (ms)']],'ba');
-  if(!inc||!inc.series){$('batable').innerHTML='<div class="mute small">Appears after an incident.</div>';return}
-  ['queue_depth','latency_ms'].forEach(k=>{const b=(S.baselines||{})[k]||(inc.baselines||{})[k];
-    const r=inc.verification&&inc.verification.metrics[k];
-    draw($('bac_'+k),inc.series,k,{baseline:b&&b.baseline,threshold:r&&r.threshold,markers:markers(S,inc)});
-    const last=inc.series[inc.series.length-1];$('bav_'+k).textContent=last?fmt(last[k]):''});
-  const v=inc.verification;
-  if(!v||!inc.before){$('batable').innerHTML='<div class="mute small">Before/after table is produced once an action has been executed and verified (green dotted line = recovery threshold).</div>';return}
-  let h='<table><tr><th>Metric</th><th>Baseline</th><th>Before (peak)</th><th>After (mean of last '+v.window+')</th><th>Recovery threshold</th><th>Improvement</th><th>Pass</th></tr>';
-  for(const [m,r] of Object.entries(v.metrics))h+=`<tr><td>${esc(m)}</td><td>${fmt(r.baseline)}</td><td>${fmt(r.before_peak)}</td><td>${fmt(r.after_mean)}</td><td>≤ ${fmt(r.threshold)}</td><td>${r.improvement==null?'n/a':Math.round(r.improvement*100)+'%'}</td><td>${r.passed==null?'?':r.passed?'✓':'✗'}</td></tr>`;
-  $('batable').innerHTML=h+`</table><div class="small mute">Verdict: <b>${esc(v.verdict)}</b> — ${esc(v.reason)}. ${S.service_mode==='live'?'Live Service X measurements.':'Simulated measurements.'}</div>`;
-}
-function render(S){
-  const hb=$('health');hb.textContent=S.health.toUpperCase();hb.className='badge '+S.health;
-  $('clock').textContent=(S.service_mode==='live'?'live':'sim')+' t='+Math.round(S.now)+'s'+(S.paused?' (paused)':'');
-  $('service_badge').textContent=`Mode: ${S.service_mode||'simulation'}`;
-  $('live_controls').style.display=S.service_mode==='live'?'block':'none';
-  if(S.host_info){const h=S.host_info,ls=S.live_system||{};const mem=ls.process_memory_mb!=null?` · ${ls.process_memory_mb}MB`:'';$('host_badge').textContent=`${h.platform_label} (${h.cpu_count} CPU${mem})`}
-  if(S.slm_provider){$('slm_badge').textContent=`SLM: ${S.slm_provider}`}
-  $('dry').checked=S.mode.dry_run;$('auto').checked=S.mode.auto_approve;$('pause').textContent=S.paused?'Resume':'Pause';
-  $('svc').textContent=`mode ${S.service_mode||'simulation'} · workers ${S.workers}/${S.limits.max_workers} · intake ${(S.intake_factor*100).toFixed(0)}% · fault: ${S.fault?S.fault.kind+' ×'+S.fault.magnitude:'none'}`;
-  mkCharts($('charts'),METRICS,'m');const mk=markers(S,S.incident);
-  METRICS.forEach(([k])=>{const b=(S.baselines||{})[k];draw($('mc_'+k),S.series,k,{baseline:b&&b.baseline,markers:mk});
-    const last=S.series[S.series.length-1];$('mv_'+k).textContent=last?fmt(last[k]):''});
-  renderIncident(S);renderBA(S);
-  if(S.ai_host){
-    const ah=S.ai_host;
-    $('ai_platform').textContent=ah.platform||'IBM Z LinuxONE';
-    $('ai_cpu').textContent=ah.cpu_pct!=null?ah.cpu_pct+'%':'--%';
-    $('ai_score').textContent=ah.anomaly_score!=null?(ah.anomaly_score>0?'+':'')+ah.anomaly_score:'--';
-    $('ai_score').style.color=ah.is_anomaly?'#f87171':'#4ade80';
-    const ab=$('ai_status_badge');
-    if(ah.status==='WARMING_UP'){
-      ab.textContent='AI: WARMING UP';ab.className='badge degraded';
-    }else if(ah.is_anomaly){
-      ab.textContent='🚨 AI: ANOMALY DETECTED';ab.className='badge critical';
-    }else{
-      ab.textContent='✅ AI: NORMAL';ab.className='badge healthy';
+
+function renderIncident(S) {
+  const inc = S.incident, el = $('inc');
+  const reportOpen = el.querySelector('details')?.open || false;
+  if (!inc) {
+    el.innerHTML = '<div class="card-title"><h2><span class="icon">🛡️</span> Active Incident</h2></div><div class="mute small">No active incidents. Inject a workload fault to trigger autonomous response.</div>';
+    return;
+  }
+  const [bc, bt] = stateBanner(inc), d = inc.diagnosis || {};
+  let h = `<div class="card-title"><h2><span class="icon">🛡️</span> Incident ${esc(inc.id)}</h2></div><div class="banner ${bc}">${esc(bt)}</div>`;
+  h += `<div class="small mute" style="margin-bottom:8px">Opened at t=${fmt(inc.opened_t, 4)}s &middot; Detected ${inc.time_to_detect_s != null ? inc.time_to_detect_s + 's after fault trigger' : ''}</div>`;
+  h += `<p style="margin:4px 0 8px 0;font-weight:600;color:#f8fafc">${esc(d.summary || '')}</p>`;
+
+  if (d.ai_explanation) {
+    h += `<div style="background:rgba(99,102,241,0.12);border-left:3px solid #6366f1;padding:10px 12px;border-radius:6px;margin:10px 0;font-size:12px">
+      <div style="font-weight:700;color:#c7d2fe;margin-bottom:4px">🤖 SLM Incident Diagnosis:</div>
+      <div style="color:#e0e7ff;line-height:1.4">${esc(d.ai_explanation)}</div>
+    </div>`;
+  }
+
+  if (d.facts) {
+    h += `<div class="small" style="margin:8px 0"><b>Telemetry Evidence Facts:</b><ul style="margin:4px 0 4px 18px;padding:0;color:#cbd5e1">` +
+      d.facts.map(f => `<li>${esc(f)}</li>`).join('') + `</ul></div>`;
+  }
+
+  const pend = inc.pending_action && inc.actions.find(a => a.id === inc.pending_action);
+  if (pend) {
+    h += `<div class="reco-box">
+      <div style="font-size:11px;font-weight:700;color:#38bdf8;margin-bottom:4px">PROPOSED BOUNDED ACTION:</div>
+      <span class="reco-action-tag">${esc(pend.action)}</span> <code style="font-size:11px">${esc(JSON.stringify(pend.params))}</code>
+      <div class="small" style="margin-top:6px;color:#cbd5e1">${esc(pend.rationale)}</div>`;
+
+    if (pend.ai_justification) {
+      h += `<div style="background:rgba(16,185,129,0.1);border-left:3px solid #10b981;padding:8px 10px;border-radius:4px;margin:8px 0;font-size:11px;color:#d1fae5">
+        <b>SLM Action Justification:</b> ${esc(pend.ai_justification)}
+      </div>`;
     }
-    if(ah.is_anomaly && ah.slm_explanation){
-      $('ai_slm_box').style.display='block';
-      $('ai_slm_text').textContent=ah.slm_explanation;
-    }else if(!ah.is_anomaly){
-      $('ai_slm_box').style.display='none';
+
+    h += `<div class="small mute" style="margin-top:6px">${esc((d.recommendation || {}).expected_effect || '')}</div>
+      <div class="btns" style="margin-top:10px">
+        <button class="ok" onclick="post('/api/approve',{action_id:'${esc(pend.id)}',who:'operator'})">✓ Approve &amp; Execute</button>
+        <button onclick="post('/api/reject',{action_id:'${esc(pend.id)}',who:'operator'})">✗ Reject Action</button>
+      </div>
+    </div>`;
+  }
+
+  if (inc.postmortem) {
+    h += `<details style="margin:12px 0">
+      <summary style="cursor:pointer;font-weight:600;color:#6366f1;font-size:12px">📄 View Automated SRE Post-Mortem Report</summary>
+      <pre style="background:#090d16;color:#38bdf8;border:1px solid var(--border);padding:12px;border-radius:8px;font-size:11px;overflow:auto;max-height:240px;white-space:pre-wrap;margin-top:8px;font-family:'JetBrains Mono',monospace">${esc(inc.postmortem)}</pre>
+    </details>`;
+  }
+
+  h += `<div class="small mute" style="margin-top:10px;font-weight:600">Incident Timeline:</div>
+    <div class="timeline">` +
+    inc.timeline.map(e => `<div class="timeline-item"><span class="t-stamp">t=${fmt(e.t, 4)}s</span><div><b>${esc(e.event)}</b> <span class="mute">${esc(e.detail)}</span></div></div>`).join('') +
+    `</div>`;
+
+  el.innerHTML = h;
+  const report = el.querySelector('details');
+  if (report) report.open = reportOpen;
+  const tl = el.querySelector('.timeline');
+  if (tl) tl.scrollTop = tl.scrollHeight;
+}
+
+function renderBA(S) {
+  const inc = S.incident;
+  mkCharts($('ba'), [['queue_depth', 'Queue Depth'], ['latency_ms', 'Latency (ms)']], 'ba');
+  if (!inc || !inc.series) {
+    $('batable').innerHTML = '<div class="mute small">Before/after telemetry verification appears once an action is executed.</div>';
+    return;
+  }
+  ['queue_depth', 'latency_ms'].forEach(k => {
+    const b = (S.baselines || {})[k] || (inc.baselines || {})[k];
+    const r = inc.verification && inc.verification.metrics[k];
+    draw($('bac_' + k), inc.series, k, { baseline: b && b.baseline, threshold: r && r.threshold, markers: markers(S, inc) });
+    const last = inc.series[inc.series.length - 1];
+    $('bav_' + k).textContent = last ? fmt(last[k]) : '';
+  });
+
+  const v = inc.verification;
+  if (!v || !inc.before) {
+    $('batable').innerHTML = '<div class="mute small">Awaiting post-action settlement to produce mathematical proof of recovery.</div>';
+    return;
+  }
+
+  let h = `<table><tr><th>Metric</th><th>Learned Baseline</th><th>Before (Peak)</th><th>After (Settled)</th><th>Certified Threshold</th><th>Improvement</th><th>Status</th></tr>`;
+  for (const [m, r] of Object.entries(v.metrics)) {
+    h += `<tr>
+      <td style="font-weight:600">${esc(m)}</td>
+      <td>${fmt(r.baseline)}</td>
+      <td style="color:#f43f5e">${fmt(r.before_peak)}</td>
+      <td style="color:#34d399">${fmt(r.after_mean)}</td>
+      <td>&le; ${fmt(r.threshold)}</td>
+      <td>${r.improvement == null ? 'n/a' : Math.round(r.improvement * 100) + '%'}</td>
+      <td>${r.passed ? '<span class="pill" style="background:#059669;color:#fff">PASSED</span>' : '<span class="pill" style="background:#e11d48;color:#fff">FAILED</span>'}</td>
+    </tr>`;
+  }
+  $('batable').innerHTML = h + `</table><div class="small mute" style="margin-top:6px">Verification Proof Verdict: <b style="color:#f8fafc">${esc(v.verdict.toUpperCase())}</b> &mdash; ${esc(v.reason)}</div>`;
+}
+
+function render(S) {
+  const hb = $('health');
+  const ht = $('health_text');
+  ht.textContent = S.health === 'healthy' ? 'SYSTEM HEALTHY' : (S.health === 'degraded' ? 'SYSTEM DEGRADED' : 'CRITICAL INCIDENT');
+  hb.className = 'beacon ' + S.health;
+
+  $('clock').textContent = (S.service_mode === 'live' ? 'Live ' : 'Sim ') + 't=' + Math.round(S.now) + 's' + (S.paused ? ' (Paused)' : '');
+  $('service_badge').textContent = `Target: ${S.service_mode || 'simulation'}`;
+  $('live_controls').style.display = S.service_mode === 'live' ? 'block' : 'none';
+
+  if (S.host_info) {
+    const h = S.host_info, ls = S.live_system || {};
+    const mem = ls.process_memory_mb != null ? ` &middot; ${ls.process_memory_mb}MB` : '';
+    $('host_badge').innerHTML = `${h.platform_label} (${h.cpu_count} CPU${mem})`;
+  }
+  if (S.slm_provider) {
+    $('slm_badge').textContent = `SLM: ${S.slm_provider}`;
+  }
+
+  $('dry').checked = S.mode.dry_run;
+  $('auto').checked = S.mode.auto_approve;
+  $('pause').textContent = S.paused ? '▶ Resume' : '⏸ Pause';
+  $('svc').textContent = `Workers: ${S.workers}/${S.limits.max_workers} &middot; Intake: ${(S.intake_factor * 100).toFixed(0)}% &middot; Fault: ${S.fault ? S.fault.kind + ' &times;' + S.fault.magnitude : 'none'}`;
+
+  mkCharts($('charts'), METRICS, 'm');
+  const mk = markers(S, S.incident);
+  METRICS.forEach(([k]) => {
+    const b = (S.baselines || {})[k];
+    draw($('mc_' + k), S.series, k, { baseline: b && b.baseline, markers: mk });
+    const last = S.series[S.series.length - 1];
+    $('mv_' + k).textContent = last ? fmt(last[k]) : '';
+  });
+
+  renderIncident(S);
+  renderBA(S);
+
+  // Render AI Host Telemetry & SLM
+  if (S.ai_host) {
+    const ah = S.ai_host;
+    $('ai_platform').textContent = ah.platform || 'Universal Host';
+    $('ai_cpu').textContent = ah.cpu_pct != null ? ah.cpu_pct + '%' : '--%';
+    $('ai_score').textContent = ah.anomaly_score != null ? (ah.anomaly_score > 0 ? '+' : '') + ah.anomaly_score : '--';
+    $('ai_score').style.color = ah.is_anomaly ? '#f43f5e' : '#34d399';
+
+    const ab = $('ai_status_badge');
+    if (ah.status === 'WARMING_UP') {
+      ab.innerHTML = '<span class="beacon-dot"></span> AI: WARMING UP';
+      ab.className = 'beacon degraded';
+    } else if (ah.is_anomaly) {
+      ab.innerHTML = '<span class="beacon-dot"></span> 🚨 AI: ANOMALY DETECTED';
+      ab.className = 'beacon critical';
+    } else {
+      ab.innerHTML = '<span class="beacon-dot"></span> AI: NORMAL';
+      ab.className = 'beacon healthy';
+    }
+
+    if (ah.is_anomaly && ah.slm_explanation) {
+      $('ai_slm_box').style.display = 'block';
+      $('ai_slm_text').textContent = ah.slm_explanation;
+    } else if (!ah.is_anomaly) {
+      $('ai_slm_box').style.display = 'none';
     }
   }
-  $('alerts').innerHTML='<tr><th>t</th><th>sev</th><th>metric</th><th>observed / baseline</th><th>why</th><th>handling</th></tr>'+S.alerts.map(a=>`<tr><td>${Math.round(a.t)}</td><td><span class="pill s-${esc(a.severity)}">${esc(a.severity)}</span></td><td>${esc(a.metric)}</td><td>${fmt(a.observed)} / ${fmt(a.baseline)}</td><td class="small">${esc(a.reason)}</td><td class="small">${esc(a.action)}</td></tr>`).join('');
-  $('actions').innerHTML='<tr><th>id</th><th>action</th><th>status</th><th>by</th><th>result</th></tr>'+S.actions.map(a=>`<tr><td>${esc(a.id)}<div class="mute small">${esc(a.incident_id)}</div></td><td>${esc(a.action)}<div class="mute small">${esc(JSON.stringify(a.params))}</div></td><td>${esc(a.status)}${a.dry_run?' (dry)':''}</td><td>${esc(a.approved_by||(a.requires_approval?'—':'auto'))}</td><td class="small">${esc(a.result||a.blocked_reason||'')}<div class="mute">req t=${Math.round(a.requested_t)}${a.executed_t!=null?' · exec t='+Math.round(a.executed_t):''}</div></td></tr>`).join('');
+
+  // Render Alerts Table
+  $('alerts').innerHTML = `<tr><th>Time</th><th>Severity</th><th>Metric</th><th>Observed / Baseline</th><th>Diagnostic Reason</th></tr>` +
+    S.alerts.map(a => `<tr>
+      <td style="font-family:'JetBrains Mono',monospace">${Math.round(a.t)}s</td>
+      <td><span class="pill s-${esc(a.severity)}">${esc(a.severity.toUpperCase())}</span></td>
+      <td style="font-weight:600">${esc(a.metric)}</td>
+      <td style="font-family:'JetBrains Mono',monospace">${fmt(a.observed)} / ${fmt(a.baseline)}</td>
+      <td class="small mute">${esc(a.reason)}</td>
+    </tr>`).join('');
+
+  // Render Immutable Action Audit Table
+  $('actions').innerHTML = `<tr><th>Action ID</th><th>Operation</th><th>Status</th><th>Signer</th><th>Result Proof</th></tr>` +
+    S.actions.map(a => `<tr>
+      <td style="font-family:'JetBrains Mono',monospace;color:#38bdf8">${esc(a.id)}</td>
+      <td><b>${esc(a.action)}</b> <span class="mute small">${esc(JSON.stringify(a.params))}</span></td>
+      <td><span class="pill" style="background:rgba(255,255,255,0.08);color:#f1f5f9">${esc(a.status)}</span></td>
+      <td>${esc(a.approved_by || (a.requires_approval ? '—' : 'Auto'))}</td>
+      <td class="small">${esc(a.result || a.blocked_reason || '')}</td>
+    </tr>`).join('');
 }
-async function refresh(){try{const r=await fetch('/api/state');S=await r.json();render(S)}catch(e){$('clock').textContent='disconnected'}}
-refresh();setInterval(refresh,700);
+
+async function refresh() {
+  try {
+    const r = await fetch('/api/state');
+    S = await r.json();
+    render(S);
+  } catch (e) {
+    $('clock').textContent = 'Disconnected';
+  }
+}
+
+refresh();
+setInterval(refresh, 700);
 </script>
 </body>
 </html>
